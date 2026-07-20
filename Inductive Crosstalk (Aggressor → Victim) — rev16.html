@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev15</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev16</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev15</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev16</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -324,23 +324,53 @@ M=441.7 pH (k=0.50); victim R<sub>2</sub>=0 k&Omega;, C<sub>2</sub>=1 pF.</p>
 </table>
 
 <h2 id="model">10. Python model (coupled 4-state)</h2>
-<pre>mu0,l,w,t = 4e-7*np.pi, 1e-3, 30e-6, 10e-6
-L1 = L2 = mu0*l/(2*np.pi)*(np.log(2*l/(w+t))+0.5+0.2235*(w+t)/l)   # 0.88 nH  (1 mm wire)
-R1, C1, Vagg = 50.0, 100e-12, 1.0          # primary
-R2, C2     = 1e3, 10e-12                    # victim filter
-det = L1*L2 - M*M                           # mutual-inductance matrix det
+<p>Self-contained &mdash; <b>copy, paste, run</b> (needs <span class="val">numpy scipy matplotlib</span>): it builds the
+mutual inductance from the wire spacing, solves the 4-state ODE, <b>prints the victim peak</b> for both headline cases and
+<b>plots</b> the filtered victim &mdash; reproducing Case&nbsp;A (&asymp;1&nbsp;mV) and Case&nbsp;B (&asymp;100&nbsp;mV). Same file in the
+repo: <a href="inductive_crosstalk_model.py">inductive_crosstalk_model.py</a>.</p>
+<pre># Coupled 4-state inductive-crosstalk model — copy, paste, run.
+#   pip install numpy scipy matplotlib   →   python3 this_file.py
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
 
-def rhs(t, x):                 # x = [I1, Vc, I2, Vcvic]
-    I1, Vc, I2, Vcv = x
-    b1 = Vagg - R1*I1 - Vc                  # primary branch
-    b2 = -R2*I2 - Vcv                       # secondary branch (no source)
-    dI1 = (L2*b1 - M*b2)/det
-    dI2 = (-M*b1 + L1*b2)/det
-    return [dI1, I1/C1, dI2, I2/C2]
+# --- geometry: 1 mm wire, 30 um wide, 10 um thick -&gt; self-inductance ---
+mu0, l, w, t = 4e-7*np.pi, 1e-3, 30e-6, 10e-6
+L1 = L2 = mu0*l/(2*np.pi)*(np.log(2*l/(w+t)) + 0.5 + 0.2235*(w+t)/l)   # ~0.884 nH
 
-sol  = solve_ivp(rhs,(0,40e-9),[0,0,0,0],rtol=1e-10,atol=1e-15)
-Vvic = sol.y[3]                             # victim = voltage across C2
-Vpk  = np.max(np.abs(Vvic))                 # filtered peak  (~100.00 mV)</pre>
+# --- fixed circuit values ---
+R1, C1, Vagg = 50.0, 100e-12, 1.0      # primary  (aggressor loop)
+R2, C2       = 50.0, 1e-12             # victim filter (light: tau2 = 50 ps)
+
+def Mof(d):                            # mutual inductance of two parallel wires, spacing d
+    return mu0*l/(2*np.pi)*(np.arcsinh(l/d) - np.sqrt(1+(d/l)**2) + d/l)
+
+def solve(M):                          # returns (t, victim-voltage-across-C2)
+    det = L1*L2 - M*M                  # mutual-inductance matrix determinant
+    def rhs(t, x):                     # x = [I1, Vc1, I2, Vc2]
+        I1, Vc1, I2, Vc2 = x
+        b1 = Vagg - R1*I1 - Vc1        # primary branch
+        b2 =       - R2*I2 - Vc2       # secondary branch (no source)
+        dI1 = ( L2*b1 - M*b2)/det
+        dI2 = (-M*b1 + L1*b2)/det
+        return [dI1, I1/C1, dI2, I2/C2]
+    s = solve_ivp(rhs, (0, 8e-9), [0,0,0,0], rtol=1e-10, atol=1e-15, max_step=2e-12)
+    return s.t, s.y[3]                 # victim = voltage across C2
+
+# --- run the two headline cases and show the result ---
+cases = {&quot;Case A  (far,  d=23.5 mm)&quot;: Mof(23.5e-3),
+         &quot;Case B  (near, d=0.088 mm)&quot;: Mof(0.088e-3)}
+print(f&quot;L1 = L2 = {L1*1e9:.3f} nH   (R1={R1:.0f} Ohm, R2={R2:.0f} Ohm, C2={C2*1e12:.0f} pF, Vagg={Vagg} V)\n&quot;)
+plt.figure(figsize=(8,4))
+for name, M in cases.items():
+    tt, Vvic = solve(M)
+    Vpk = np.max(np.abs(Vvic))
+    print(f&quot;{name:28s}  M = {M*1e12:6.2f} pH   -&gt;   victim peak = {Vpk*1e3:8.3f} mV&quot;)
+    plt.plot(tt*1e12, Vvic*1e3, label=f&quot;{name}  (peak {Vpk*1e3:.2f} mV)&quot;)
+plt.xlabel(&quot;time  [ps]&quot;); plt.ylabel(&quot;V_victim across C2  [mV]&quot;)
+plt.title(&quot;Coupled 4-state inductive crosstalk — filtered victim&quot;); plt.xlim(0,300)
+plt.legend(); plt.grid(alpha=0.3); plt.tight_layout(); plt.show()</pre>
+<div class="note">&#9654; <b>Result</b> (printed on run): <span class="val">Case A &rarr; 0.999 mV &nbsp;·&nbsp; Case B &rarr; 100.041 mV</span> &mdash; matches Table&nbsp;1, and a matplotlib window shows the two filtered-victim waveforms.</div>
 
 <h2 id="src">11. Sources</h2>
 <ol class="refs">
