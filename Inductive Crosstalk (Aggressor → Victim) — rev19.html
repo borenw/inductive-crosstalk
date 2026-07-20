@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev18</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev19</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev18</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev19</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -264,7 +264,9 @@ revisions.</p>
 <p style="margin-top:20px"><b>All aggressor&rarr;victim pairs</b> (worst first):</p>
 <table class="ctab" id="chkTbl"><thead><tr>
   <th>Aggressor</th><th>Victim</th><th>d (&micro;m)</th><th>overlap L (&micro;m)</th>
-  <th>M (pH)</th><th>V<sub>victim,pk</sub></th><th>V<sub>err</sub></th>
+  <th>M (pH)</th><th>V<sub>victim,pk</sub><br><span style="font-weight:400;color:#5E6C84">closed-form</span></th>
+  <th>V<sub>victim,pk</sub> (sim)<br><span style="font-weight:400;color:#5E6C84">4-state &rarr; &sect;10 &#8629;</span></th>
+  <th>V<sub>err</sub></th>
   <th>ratio</th><th>Inductive</th></tr></thead><tbody></tbody></table>
 
 <div class="note">&#128204; <b>How the inductive check works (per pair).</b>
@@ -395,9 +397,9 @@ for name, Rin in [(&quot;ISEN_CS1&quot;, 200.0), (&quot;ISEN_CS2&quot;, 1000.0)]
     plot, vpk = ascii_plot(ts, vs, &quot;PWM_HDRV -&gt; %s  (Rin=%.0f ohm)  [victim V across C2, mV]&quot;%(name,Rin))
     print(plot); print(&quot;        Verr = 1.000 mV   -&gt;   %s\n&quot;%(&quot;PASS&quot; if abs(vpk)&lt;=1e-3 else &quot;FAIL&quot;))</pre>
 <div class="note">&#9654; <b>Result</b> (printed to the terminal on run):</div>
-<pre style="background:#0b1020;color:#c8e1ff;border-color:#0b1020">La=4.640 nH   Lv=0.0772 nH   M=19.79 pH   (Vagg=5 V, R1=100 ohm, Cin=1 pF)
+<pre id="asciiout" style="background:#0b1020;color:#c8e1ff;border-color:#0b1020">La=4.640 nH   Lv=0.0772 nH   M=19.79 pH   (Vagg=5 V, R1=100 ohm, Cin=1 pF)
 
-PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
+<span style="color:#f87171">PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
   0.000 |o----------------------------------------------------------o
         |                                            ooooooooooooooo 
         |                                    oooooooo                
@@ -415,9 +417,9 @@ PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
  -3.176 |     oo*o &lt;- peak = -3.176 mV                               
         +------------------------------------------------------------
         0                          time [ps]                 792
-        Verr = 1.000 mV   -&gt;   FAIL
+        Verr = 1.000 mV   -&gt;   FAIL</span>
 
-PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
+<span style="color:#4ade80">PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
   0.060 |                                                            
   0.000 |o-----------------------------------------------------------
         |                                                            
@@ -435,7 +437,7 @@ PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
  -0.846 |     oo*o &lt;- peak = -0.846 mV                               
         +------------------------------------------------------------
         0                          time [ps]                 1310
-        Verr = 1.000 mV   -&gt;   PASS</pre>
+        Verr = 1.000 mV   -&gt;   PASS</span></pre>
 
 <h2 id="src">11. Sources</h2>
 <ol class="refs">
@@ -483,6 +485,27 @@ against primary sources before use. Educational; trademarks belong to their owne
   // Closed-form filtered victim peak (slow-filter estimate, conservative):
   //   V_victim,pk = M * Vagg / (R1 * R2 * C2)
   function victimPeak(M,Vg,R1,R2,C2){return M*Vg/(R1*R2*C2);}
+  // trace self-inductance (needed by the exact solve)
+  function Lself(L,w,t){return MU0*L/(2*Math.PI)*(Math.log(2*L/(w+t))+0.5+0.2235*(w+t)/L);}
+  // exact 4-state RK4 solve -> peak |V across C2|  (matches the §10 Python / ASCII model, C1=100 pF)
+  function simPeak(La,Lv,M,R1,R2,C2,Vg){
+    var C1=100e-12, k=M/Math.sqrt(La*Lv); if(k>0.98)M=0.98*Math.sqrt(La*Lv);
+    var det=La*Lv-M*M;
+    function f(x){var I1=x[0],Vc1=x[1],I2=x[2],Vc2=x[3];var b1=Vg-R1*I1-Vc1,b2=-R2*I2-Vc2;
+      return [(Lv*b1-M*b2)/det, I1/C1, (-M*b1+La*b2)/det, I2/C2];}
+    var dt=Math.min(La/R1,Lv/R2,R2*C2,Math.sqrt(Lv*C2))/25;
+    var T=Math.max(8*R2*C2,40*La/R1,3e-9),N=Math.min(60000,Math.ceil(T/dt));dt=T/N;
+    var x=[0,0,0,0],vpk=0;
+    for(var i=0;i<N;i++){
+      var k1=f(x),x2=[x[0]+.5*dt*k1[0],x[1]+.5*dt*k1[1],x[2]+.5*dt*k1[2],x[3]+.5*dt*k1[3]],k2=f(x2);
+      var x3=[x[0]+.5*dt*k2[0],x[1]+.5*dt*k2[1],x[2]+.5*dt*k2[2],x[3]+.5*dt*k2[3]],k3=f(x3);
+      var x4=[x[0]+dt*k3[0],x[1]+dt*k3[1],x[2]+dt*k3[2],x[3]+dt*k3[3]],k4=f(x4);
+      for(var j=0;j<4;j++)x[j]+=dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]);
+      var a=Math.abs(x[3]); if(!isFinite(a)||a>2*Math.abs(Vg))return Math.abs(Vg);
+      if(a>vpk)vpk=a;
+    }
+    return Math.min(vpk,Math.abs(Vg));
+  }
   // ---------- formatting ----------
   function fV(v){var a=Math.abs(v);return a<1e-3?(v*1e6).toFixed(1)+' µV':a<1?(v*1e3).toPrecision(3)+' mV':v.toPrecision(3)+' V';}
   function fM(M){var p=M*1e12;return p<1000?p.toFixed(1)+' pH':(M*1e9).toFixed(3)+' nH';}
@@ -540,9 +563,11 @@ against primary sources before use. Educational; trademarks belong to their owne
         var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6, R2=v.Rin>0?v.Rin:1e-3, C2=v.Cin*1e-12;
         if(!(d>0)||!(ov>0)||!(C2>0)){return;}
         var M=Mmut(d,ov);
-        var vp=Math.min(victimPeak(M,Vg,R1,R2,C2),Math.abs(Vg));   // cap at source swing
+        var vp=Math.min(victimPeak(M,Vg,R1,R2,C2),Math.abs(Vg));   // closed-form (conservative)
+        var La=Lself(a.len*1e-6,a.w*1e-6,a.t*1e-6), Lv=Lself(v.len*1e-6,v.w*1e-6,v.t*1e-6);
+        var sp=simPeak(La,Lv,M,R1,R2,C2,Vg);                       // exact 4-state sim
         var verr=v.Verr*1e-3, ratio=vp/verr;
-        pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,verr:verr,ratio:ratio,pass:vp<=verr});
+        pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,sp:sp,verr:verr,ratio:ratio,pass:vp<=verr,spass:sp<=verr});
         var vk=v.ic+'|'+v.pad;
         if(!vworst[vk]||vp>vworst[vk].vp)vworst[vk]={v:v,a:a,vp:vp,verr:verr,pass:vp<=verr};
       });
@@ -555,10 +580,11 @@ against primary sources before use. Educational; trademarks belong to their owne
       '<td>'+p.d+'</td><td>'+p.ov.toFixed(0)+'</td>'+
       '<td>'+fM(p.M)+'</td>'+
       '<td class="'+(p.pass?'pass':'fail')+'">'+fV(p.vp)+'</td>'+
+      '<td class="'+(p.spass?'pass':'fail')+'"><a href="#asciiout" style="color:inherit;font-weight:700" title="jump to the ASCII simulation waveform (§10)">'+fV(p.sp)+' &#8629;</a></td>'+
       '<td>'+fV(p.verr)+'</td>'+
       '<td>'+(p.ratio>=1?p.ratio.toFixed(1)+'×':(p.ratio*100).toFixed(0)+'%')+'</td>'+
       '<td><span class="stat-badge '+(p.pass?'b-pass':'b-fail')+'">'+(p.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('')
-      || '<tr><td colspan="9" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
+      || '<tr><td colspan="10" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
     var sb=document.querySelector('#sumTbl tbody');
     sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var margin=s.verr-s.vp;
       return '<tr>'+
@@ -566,7 +592,7 @@ against primary sources before use. Educational; trademarks belong to their owne
       '<td>'+fV(s.verr)+'</td>'+
       '<td>'+esc(s.a.ic)+' · '+esc(s.a.pad)+'</td>'+
       '<td class="'+(s.pass?'pass':'fail')+'">'+fV(s.vp)+'</td>'+
-      '<td class="'+(s.pass?'pass':'fail')+'">'+(margin>=0?'+':'')+fV(margin)+'</td>'+
+      '<td>'+(s.pass?'<span class="pass">+'+fV(margin)+'</span>':'<span style="color:#DE350B;font-weight:700">N/A</span>')+'</td>'+
       '<td><span class="stat-badge '+(s.pass?'b-pass':'b-fail')+'">'+(s.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('');
   }
   function refresh(){syncArrays();runChecker();}
