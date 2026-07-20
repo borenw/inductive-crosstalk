@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev14</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev15</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev14</b> &nbsp;&bull;&nbsp; coupled secondary loop &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev15</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -63,12 +63,15 @@
    <li><a href="#intro">1. Introduction &mdash; what changed</a></li>
    <li><a href="#sch">2. Completed schematic &amp; loop equations</a></li>
    <li><a href="#sim">3. Transient: I&#8321;, induced EMF, filtered victim</a></li>
-   <li><a href="#cases">4. Filtered victim peak &mdash; cases + live Case C</a></li>
-   <li><a href="#fp">5. First-principles derivation</a></li>
-   <li><a href="#spec">6. Design spec &amp; simulation results</a></li>
-   <li><a href="#model">7. Python model (coupled 4-state)</a></li>
-   <li><a href="#src">8. Sources</a></li>
-   <li><a href="#iq">9. Design questions asked in an interview</a></li>
+   <li><a href="#pins">4. Pin list &mdash; grouped by function</a></li>
+   <li><a href="#aggr">5. Aggressor info</a></li>
+   <li><a href="#vict">6. Victim info</a></li>
+   <li><a href="#chk">7. Spec Checker &mdash; SI mechanisms (inductive crosstalk first)</a></li>
+   <li><a href="#fp">8. First-principles derivation</a></li>
+   <li><a href="#spec">9. Design spec &amp; simulation results</a></li>
+   <li><a href="#model">10. Python model (coupled 4-state)</a></li>
+   <li><a href="#src">11. Sources</a></li>
+   <li><a href="#iq">12. Design questions asked in an interview</a></li>
  </ul>
 </div>
 
@@ -144,7 +147,7 @@ a closed-form estimate, and a full 4-state simulation that confirms it.</p>
     <div class="fbox" style="margin-top:10px"><div class="lbl">secondary loop</div>
       $$0=M\dot I_1+L_2\dot I_2+R_2I_2+V_{C_2}$$</div>
     <div class="fbox" style="margin-top:10px"><div class="lbl">victim peak (slow-filter limit)</div>
-      $$V_{victim,pk}pproxrac{M}{R_2C_2}\,I_{1,pk}$$</div>
+      $$V_{victim,pk}\approx\frac{M}{R_2C_2}\,I_{1,pk}$$</div>
   </div>
 </div>
 
@@ -164,117 +167,138 @@ C<sub>2</sub> after the light R<sub>2</sub>C<sub>2</sub> filter &mdash; reaches 
 <div class="note">&#128161; The bottom panel is what we measure: the R<sub>2</sub>C<sub>2</sub> filter integrates the bipolar EMF, so
 the victim rides <b>I&#8321;(t)</b>, not dI&#8321;/dt &mdash; peak &asymp;5&times; below the EMF spike.</div>
 
-<h2 id="cases">4. Filtered victim peak &mdash; solve d for 1 mV / 100 mV (measured across C<sub>2</sub>) + live Case C</h2>
-<p><b>Geometry (this section):</b> aggressor and victim are each a <b>1&nbsp;mm-long wire, 30&nbsp;&micro;m wide,
-10&nbsp;&micro;m thick</b> &mdash; giving self-inductance <span class="val">L&#8321;=L&#8322;=0.88&nbsp;nH</span> and
-slew <span class="val">V<sub>agg</sub>/L&#8321;=1131&nbsp;mA/ns</span>. Victim filter is now a
-<b>light</b> <span class="val">R<sub>2</sub>=50&nbsp;&Omega;, C<sub>2</sub>=1&nbsp;pF</span>
-(&tau;<sub>2</sub>=50&nbsp;ps). The <b>only</b> knob between Case&nbsp;A and Case&nbsp;B is the separation
-<span class="val">d</span>, solved so the <b>measured (filtered) victim peak across C<sub>2</sub></b> hits
-<b>1&nbsp;mV (A)</b> and <b>100&nbsp;mV (B)</b> &mdash; verified by full 4-state simulation. Type your own
-d / R<sub>2</sub> / C<sub>2</sub> / V<sub>agg</sub> into <span class="legendA">Case C</span> (it runs the actual ODE).</p>
-<div class="warn"><b>Why the light filter.</b> With the earlier heavy filter (1&nbsp;k&Omega;, 10&nbsp;pF, &tau;<sub>2</sub>=10&nbsp;ns) the
-victim peak was <i>capped</i> at &asymp;1.7&nbsp;mV for <b>any</b> d &mdash; because R<sub>1</sub>=50&nbsp;&Omega; limits
-I<sub>1,pk</sub> to 20&nbsp;mA, bounding the charge into C<sub>2</sub>. Dropping to
-R<sub>2</sub>=50&nbsp;&Omega;, C<sub>2</sub>=1&nbsp;pF (&tau;<sub>2</sub>&asymp;pulse width) lets C<sub>2</sub>
-follow the EMF, so 100&nbsp;mV becomes reachable at d=0.088&nbsp;mm. Here the filter attenuates only
-&asymp;5&times; (not 575&times;).</div>
+<style>
+  .sitool table{font-size:13px}
+  .sitool select,.sitool input{font-family:SFMono-Regular,Consolas,monospace}
+  .sitool select{padding:4px 6px;border:1px solid #4C9AFF;border-radius:4px;font-size:13px;background:#fff}
+  .sitool input.tin{width:64px;padding:4px 6px;border:1px solid #4C9AFF;border-radius:4px;font-size:13px;text-align:right}
+  .sitool input.tpad{width:96px;text-align:left}
+  .sitool .btn{background:#0052CC;color:#fff;border:0;border-radius:4px;padding:6px 12px;font-size:13px;cursor:pointer;margin:6px 4px 0 0}
+  .sitool .btn.sec{background:#42526E}
+  .sitool .del{background:#DE350B;color:#fff;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:13px}
+  .fgrp{display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600;margin:2px}
+  .fg-pwm{background:#DEEBFF;color:#0747A6} .fg-cs{background:#FFF0B3;color:#7A5C00}
+  .fg-pg{background:#EAE6FF;color:#403294} .fg-dh{background:#FFEBE6;color:#B12500}
+  .fg-av{background:#E3FCEF;color:#006644} .fg-ad{background:#FDEAF4;color:#943D73}
+  .mchip{display:inline-block;padding:5px 12px;border-radius:14px;font-size:13px;font-weight:600;margin:3px 5px 3px 0;border:1px solid transparent}
+  .m-on{background:#0052CC;color:#fff} .m-off{background:#F4F5F7;color:#7A869A;border-color:#DFE1E6}
+  .pass{color:#006644;font-weight:700} .fail{color:#DE350B;font-weight:700}
+  .stat-badge{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700}
+  .b-pass{background:#E3FCEF;color:#006644} .b-fail{background:#FFEBE6;color:#DE350B}
+  #chkTbl td,#sumTbl td{padding:6px 8px}
+  #chkTbl tr.f td{background:#FFF5F3} #chkTbl tr.p td{background:#F2FCF7}
+</style>
 
-<p style="margin:18px 0 4px"><b>Table 1.</b> Separation-solved cases for the 1&nbsp;mm wires (light victim filter), and how each
-parameter moves the measured victim peak (exact from the 4-state sim; the closed form
-<span class="val">M V<sub>agg</sub>/(R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>)</span> is only the slow-filter estimate and here
-over-reads).
-(<span style="color:#1f8a58;font-size:20px">&#8733;</span> proportional, <span style="color:#C9372C;font-size:20px">&#8733;<sup style="font-size:.5em">&minus;1</sup></span> inverse, <span style="color:#C9372C">1/log(<span style="font-size:20px;vertical-align:middle">&#8733;</span>)</span> weak/log inverse, <span style="color:#7A869A">&mdash;</span> none).</p>
+<h2 id="pins">4. Pin list &mdash; grouped by function</h2>
+<p>Before any coupling check we sort the package/IC pins into <b>functional groups</b>. Each group has a typical
+signal-integrity role &mdash; noisy switching nets are natural <span class="legendB">aggressors</span>; low-tolerance
+sense/reference nets are natural <span class="legendA">victims</span>. (Representative multiphase-buck example &mdash; edit
+the two tables below to match your design.)</p>
 <table class="ctab">
-<tr><th>Rank</th><th></th><th>Parameter</th><th>Symbol</th>
-    <th><span class="legendA">Case A</span> &mdash; PWM&rarr;CS (victim &lt; 1 mV)</th>
-    <th><span class="legendB">Case B</span> &mdash; PWM&rarr;SVC (victim &lt; 100 mV)</th>
-    <th class="colC">Case C &mdash; you type</th>
-    <th>Impact on V<sub>victim,pk</sub></th></tr>
-
-<tr class="result sep"><td class="rank">#1</td><td class="ic">🎯</td>
-    <td><b>Victim peak (filtered)</b></td><td class="sym">V<sub>victim,pk</sub> (across C<sub>2</sub>, sim)</td>
-    <td class="ca">&lt; 1 mV</td><td class="cb">&lt; 100 mV</td>
-    <td class="colC"><span id="cVpk">&mdash;</span></td>
-    <td class="impd" style="color:#7A869A">&mdash;</td></tr>
-
-<tr><td class="rank">#2</td><td class="ic">⚡</td><td>Induced EMF peak (pre-filter)</td><td class="sym">(M/L&#8321;)V<sub>agg</sub></td>
-    <td>&lt; 4.82 mV</td><td>&lt; 500 mV</td><td class="colC"><span id="cEmf">&mdash;</span></td>
-    <td class="imp" style="color:#1f8a58">&#8733;</td></tr>
-
-<tr><td class="rank">#3</td><td class="ic">🧯</td><td>Filter attenuation</td><td class="sym">EMF / filtered</td>
-    <td>&gt; 5&times;</td><td>&gt; 5&times;</td><td class="colC"><span id="cAtt">&mdash;</span></td>
-    <td class="imp" style="color:#C9372C">&#8733;<sup>&minus;1</sup></td></tr>
-
-<tr><td class="rank">#4</td><td class="ic">📏</td><td>Separation distance <span style="color:#7A869A">(c-c)</span></td><td class="sym">d</td>
-    <td class="ca">&gt; 23.5 mm</td><td class="cb">&gt; 0.088 mm</td>
-    <td class="colC"><input class="cin" id="cD" value="0.5"> mm</td>
-    <td class="impd" style="color:#C9372C">1/log(<span style="font-size:34px;line-height:0;vertical-align:middle">&#8733;</span>)</td></tr>
-
-<tr><td class="rank">#5</td><td class="ic">🧲</td><td>Mutual inductance</td><td class="sym">M(d)</td>
-    <td>&lt; 4.26 pH</td><td>&lt; 441.73 pH</td><td class="colC"><span id="cM">&mdash;</span></td>
-    <td class="imp" style="color:#1f8a58">&#8733;</td></tr>
-
-<tr><td class="rank">#6</td><td class="ic">🔌</td><td>Victim resistance</td><td class="sym">R<sub>2</sub></td>
-    <td>&gt; 50 &Omega;</td><td>&gt; 50 &Omega;</td>
-    <td class="colC"><input class="cin" id="cRv" value="50"> &Omega;</td>
-    <td class="imp" style="color:#C9372C">&#8733;<sup>&minus;1</sup></td></tr>
-
-<tr><td class="rank">#7</td><td class="ic">🔋</td><td>Victim capacitance</td><td class="sym">C<sub>2</sub></td>
-    <td>&gt; 1 pF</td><td>&gt; 1 pF</td>
-    <td class="colC"><input class="cin" id="cCv" value="1"> pF</td>
-    <td class="imp" style="color:#C9372C">&#8733;<sup>&minus;1</sup></td></tr>
-
-<tr><td class="rank">#8</td><td class="ic">⏳</td><td>Victim filter constant</td><td class="sym">&tau;<sub>2</sub>=R<sub>2</sub>C<sub>2</sub></td>
-    <td>&gt; 50 ps</td><td>&gt; 50 ps</td><td class="colC"><span id="cTau">&mdash;</span></td>
-    <td class="imp" style="color:#C9372C">&#8733;<sup>&minus;1</sup></td></tr>
-
-<tr><td class="rank">#9</td><td class="ic">🔌</td><td>Primary resistance</td><td class="sym">R<sub>1</sub></td>
-    <td>&gt; 50 &Omega;</td><td>&gt; 50 &Omega;</td><td class="colC">50 &Omega;</td>
-    <td class="imp" style="color:#C9372C">&#8733;<sup>&minus;1</sup></td></tr>
-
-<tr><td class="rank">#10</td><td class="ic">🔋</td><td>Primary peak current</td><td class="sym">I<sub>1,pk</sub>&asymp;V<sub>agg</sub>/R<sub>1</sub></td>
-    <td>&lt; 19.7 mA</td><td>&lt; 19.7 mA</td><td class="colC"><span id="cI1">&mdash;</span></td>
-    <td class="imp" style="color:#1f8a58">&#8733;</td></tr>
-
-<tr><td class="rank">#11</td><td class="ic">📶</td><td>Aggressor swing</td><td class="sym">V<sub>agg</sub></td>
-    <td>&lt; 1.0 V</td><td>&lt; 1.0 V</td><td class="colC"><input class="cin" id="cVagg" value="1.0"> V</td>
-    <td class="imp" style="color:#1f8a58">&#8733;</td></tr>
-
-<tr><td class="rank">#12</td><td class="ic">🌀</td><td>Self-inductance (1 mm wire)</td><td class="sym">L&#8321;=L&#8322;</td>
-    <td>0.88 nH</td><td>0.88 nH</td><td class="colC">0.88 nH</td>
-    <td class="impd" style="color:#7A869A">&mdash;</td></tr>
+<tr><th>Function group</th><th>Typical SI role</th><th>Why</th><th>Example pins</th></tr>
+<tr><td><span class="fgrp fg-pwm">PWM</span></td><td class="legendB">Aggressor</td><td>large dV, fast edges, big dI/dt</td><td class="val">HDRV, LDRV, SW_NODE, PWM1&hellip;n, BOOT</td></tr>
+<tr><td><span class="fgrp fg-dh">digital high-speed</span></td><td class="legendB">Aggressor</td><td>fast edges, periodic clock harmonics</td><td class="val">CLK, SCLK, SYNC, DATA, PGOOD</td></tr>
+<tr><td><span class="fgrp fg-pg">voltage / gnd</span></td><td>Aggressor &amp; return</td><td>carries load-step current; shared-return coupling</td><td class="val">VIN, VDD, PGND, AGND, VDD_GND</td></tr>
+<tr><td><span class="fgrp fg-ad">analog V/I driving</span></td><td>Aggressor</td><td>drives current into a load / gate</td><td class="val">IDRV, DAC_OUT, COMP, ITH</td></tr>
+<tr><td><span class="fgrp fg-cs">current sensing</span></td><td class="legendA">Victim</td><td>&mu;V&ndash;mV budget; tiny Verr</td><td class="val">ISEN+, ISEN&minus;, CS, IMON</td></tr>
+<tr><td><span class="fgrp fg-av">analog V sensing</span></td><td class="legendA">Victim</td><td>reference / feedback accuracy</td><td class="val">FB, VSEN, VREF, VOSNS, TSEN</td></tr>
 </table>
-<div class="note">&#128161; <b>Case C is live</b> &mdash; the filtered victim peak, EMF peak, attenuation, M(d) and &tau;<sub>2</sub>
-run the actual 4-state ODE (RK4) on every keystroke &mdash; exact, not an approximation. Try d=0.088 mm, R<sub>2</sub>=50 &Omega;, C<sub>2</sub>=1 pF &rarr; &asymp;100 mV; raise R<sub>2</sub>C<sub>2</sub> &rarr; more attenuation &rarr; smaller peak.</div>
-<div class="warn"><b>Design takeaway.</b> In the slow-filter limit the peak scales as <b>M&middot;V<sub>agg</sub>/(R<sub>1</sub>&middot;R<sub>2</sub>C<sub>2</sub>)</b> (here the light filter is faster, so this over-reads &mdash; use the sim):
-cut coupling <b>M</b> (spacing), or <b>increase the victim RC</b> (slower receiver / more decoupling) to suppress the bump.
-The filter only helps because the aggressor event is fast relative to &tau;<sub>2</sub>.</div>
+<div class="note">&#128161; The <b>Aggressor info</b> (&sect;5) and <b>Victim info</b> (&sect;6) tables below are what the
+<b>Spec Checker</b> (&sect;7) parses. First column of each is the IC that owns the pad:
+<b>1&nbsp;Controller &middot; 2&nbsp;SPS &middot; 3&nbsp;Host &middot; 4&nbsp;Else</b>.</div>
 
+<h2 id="aggr">5. Aggressor info</h2>
+<p>Each row is a <b>driver pad</b> that injects noise. <span class="val">dV</span> is the output swing;
+<span class="val">dV/dt</span> and <span class="val">f</span> describe the edge/rate; <span class="val">R<sub>out</sub></span>
+is the driver output resistance (it sets the peak loop current I<sub>1,pk</sub>&asymp;dV/R<sub>out</sub>);
+<span class="val">W&middot;T&middot;L</span> set the trace self-inductance.
+<b>Even an infinite dV/dt is checkable</b> &mdash; the loop inductance limits dI<sub>1</sub>/dt, so the checker uses a
+worst-case voltage <b>step</b> (the &infin;-slew limit); a finite dV/dt only relaxes the result.</p>
+<div class="sitool">
+<table class="ctab" id="aggrTbl">
+<thead><tr>
+  <th>Driver IC</th><th>Driver pad</th><th>Function</th>
+  <th>dV (V)</th><th>dV/dt (V/ns)</th><th>f (MHz)</th><th>R<sub>out</sub> (&Omega;)</th>
+  <th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (mm)</th><th></th></tr></thead>
+<tbody></tbody></table>
+<button class="btn" id="addAggr">+ Add aggressor</button>
+</div>
+
+<h2 id="vict">6. Victim info</h2>
+<p>Each row is a <b>receiver pad</b> we must protect. <span class="val">V<sub>err</sub></span> is its noise tolerance
+(the pass/fail limit); <span class="val">R<sub>in</sub></span>, <span class="val">C<sub>in</sub></span> form the receiver
+low-pass that integrates &amp; attenuates the coupled EMF; <span class="val">d</span> is the center-to-center spacing to the
+aggressor (same layer, or the layer-to-layer distance); <span class="val">W&middot;T&middot;L</span> set the victim trace
+self-inductance and the parallel-run coupling length.</p>
+<div class="sitool">
+<table class="ctab" id="victTbl">
+<thead><tr>
+  <th>Receiver IC</th><th>Rx pad</th><th>Function</th>
+  <th>V<sub>err</sub> (mV)</th><th>R<sub>in</sub> (&Omega;)</th><th>C<sub>in</sub> (pF)</th>
+  <th>d to aggr (&micro;m)</th><th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (mm)</th><th></th></tr></thead>
+<tbody></tbody></table>
+<button class="btn" id="addVict">+ Add victim</button>
+</div>
+
+<h2 id="chk">7. Spec Checker &mdash; SI mechanisms (inductive crosstalk first)</h2>
+<p>The checker <b>auto-parses</b> the aggressor &amp; victim tables above and evaluates every
+aggressor&rarr;victim pair with the simple closed-form limit
+<span class="val">V<sub>victim,pk</sub> = M&middot;V<sub>agg</sub> / (R<sub>1</sub>&middot;R<sub>2</sub>&middot;C<sub>2</sub>)</span>
+(R<sub>1</sub>=driver R<sub>out</sub>, R<sub>2</sub>=receiver R<sub>in</sub>, C<sub>2</sub>=receiver C<sub>in</sub>). This first
+release scores the <b>inductive-crosstalk</b> mechanism; the other SI mechanisms are scaffolded and will light up in later
+revisions.</p>
+<div style="margin:10px 0 4px"><b>SI mechanisms:</b>
+  <span class="mchip m-on">🧲 Inductive crosstalk &nbsp;<b>ACTIVE</b></span>
+  <span class="mchip m-off">⚡ Capacitive (C<sub>M</sub>dV/dt)</span>
+  <span class="mchip m-off">🌐 Ground-return / SSN</span>
+  <span class="mchip m-off">🔋 PDN / IR drop</span>
+  <span class="mchip m-off">📡 Reflection / ISI</span>
+  <span class="mchip m-off">🌡️ Thermal</span>
+</div>
+
+<p style="margin-top:16px"><b>Per-victim verdict</b> &mdash; worst aggressor for each victim (inductive only):</p>
+<table class="ctab" id="sumTbl"><thead><tr>
+  <th>Victim (IC · pad)</th><th>V<sub>err</sub></th><th>Worst aggressor</th>
+  <th>V<sub>victim,pk</sub> (induced)</th><th>Margin</th><th>Inductive</th></tr></thead><tbody></tbody></table>
+
+<p style="margin-top:20px"><b>All aggressor&rarr;victim pairs</b> (worst first):</p>
+<table class="ctab" id="chkTbl"><thead><tr>
+  <th>Aggressor</th><th>Victim</th><th>d (&micro;m)</th><th>overlap L (mm)</th>
+  <th>M (pH)</th><th>V<sub>victim,pk</sub></th><th>V<sub>err</sub></th>
+  <th>ratio</th><th>Inductive</th></tr></thead><tbody></tbody></table>
+
+<div class="note">&#128204; <b>How the inductive check works (per pair).</b>
+mutual inductance <span class="val">M(d)</span> comes from the parallel-filament formula over the <b>overlap length</b>
+= min(L<sub>aggr</sub>, L<sub>victim</sub>) at center-spacing <span class="val">d</span>; then
+<span class="val">V<sub>victim,pk</sub> = M&middot;V<sub>agg</sub>/(R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>)</span>
+with R<sub>1</sub>=driver R<sub>out</sub>, R<sub>2</sub>=receiver R<sub>in</sub>, C<sub>2</sub>=receiver C<sub>in</sub>.
+<b>PASS</b> when V<sub>victim,pk</sub> &le; V<sub>err</sub>. The <b>ratio</b> column is V<sub>victim,pk</sub>/V<sub>err</sub>
+(&lt;100% passes; N× fails by that factor).</div>
+<div class="warn"><b>Modeling assumptions (first approach).</b>
+(1) Worst-case voltage <b>step</b> for the aggressor edge (dV/dt=&infin; limit; inductance bounds dI/dt) &mdash; finite
+dV/dt only lowers the peak, so dV/dt &amp; f are captured but not yet de-rated. (2) I<sub>1,pk</sub>&asymp;V<sub>agg</sub>/R<sub>out</sub>
+sets the loop current. (3) Coupling length = trace overlap; coplanar filament M(d). (4) The closed form is the
+<b>slow-filter</b> limit &mdash; it <i>over-reads</i> when &tau;<sub>2</sub>=R<sub>in</sub>C<sub>in</sub> approaches the pulse
+width (e.g. Case&nbsp;B: 177&nbsp;mV vs 100&nbsp;mV exact), so it is a <b>conservative</b> spec gate; peak also capped at
+V<sub>agg</sub>. (5) Only the <b>inductive</b> path is scored &mdash; capacitive / ground-return / PDN are listed but not yet
+computed. Verify against the full 4-state sim (&sect;8&ndash;&sect;10) or a 3-D field solver before tape-out.</div>
 <div class="note" style="background:#DEEBFF;border-left-color:#0052CC">
-<b>&#128221; Worked spec example &mdash; PWM aggressor.</b> Read Table&nbsp;1 as a coupling budget: for a victim net to stay under
-its noise limit, the <b>mutual inductance must be below</b> the M value in its column (M is <span style="color:#1f8a58">&#8733;</span>
-to the victim peak).<br><br>
-<div style="margin:12px 0 8px 26px;padding:10px 16px;border-left:5px solid #1f8a58;background:#EBFAF3;border-radius:5px">
-<b style="color:#1f8a58;font-size:16px">&#9632; Case A</b> &mdash; <i>"What's the spec for PWM&rarr;CS (current-sense) mutual inductance?"</i><br>
-CS Tolerance &lt; 1&nbsp;mV &nbsp;&rarr;&nbsp; <b>Answer: M<sub>PWM&rarr;CS</sub> &lt; 4.26 pH</b> &nbsp;(&rarr; separation d &gt; 23.5&nbsp;mm).</div>
-<div style="margin:8px 0 10px 26px;padding:10px 16px;border-left:5px solid #C9372C;background:#FDEFEE;border-radius:5px">
-<b style="color:#C9372C;font-size:16px">&#9632; Case B</b> &mdash; <i>"What's the spec for PWM&rarr;SVC mutual inductance?"</i><br>
-SVC Tolerance &lt; 100&nbsp;mV &nbsp;&rarr;&nbsp; <b>Answer: M<sub>PWM&rarr;SVC</sub> &lt; 442&nbsp;pH</b> &nbsp;(&rarr; separation d &gt; 0.088&nbsp;mm).</div>
-<span style="color:#42526E;font-size:13px">Both assume R<sub>1</sub>=50&nbsp;&Omega;, R<sub>2</sub>=50&nbsp;&Omega;,
-C<sub>2</sub>=1&nbsp;pF, V<sub>agg</sub>=1&nbsp;V; a larger R<sub>2</sub>/C<sub>2</sub> or R<sub>1</sub> relaxes the M spec.</span></div>
+&#128221; <b>Reference (from &sect;8&ndash;&sect;10).</b> For the original 1&nbsp;mm / 30&micro;m / 10&micro;m wire,
+R<sub>1</sub>=R<sub>2</sub>=50&nbsp;&Omega;, C<sub>2</sub>=1&nbsp;pF, V<sub>agg</sub>=1&nbsp;V: <b>Case A</b> d=23.5&nbsp;mm
+(M=4.26&nbsp;pH) and <b>Case B</b> d=0.088&nbsp;mm (M=442&nbsp;pH). The closed form gives the conservative estimate
+(Case&nbsp;B&rarr;177&nbsp;mV); the exact 4-state solve gives 100&nbsp;mV.</div>
 
-<h2 id="fp">5. First-principles derivation</h2>
+<h2 id="fp">8. First-principles derivation</h2>
 <p>Coupled KVL with the mutual inductance matrix (states \(I_1,V_{C_1},I_2,V_{C_2}\)):</p>
-$$egin{bmatrix}L_1&M\M&L_2\end{bmatrix}\!egin{bmatrix}\dot I_1\\dot I_2\end{bmatrix}
-=egin{bmatrix}V_{agg}-R_1 I_1-V_{C_1}\-R_2I_2-V_{C_2}\end{bmatrix},\qquad
-\dot V_{C_1}=rac{I_1}{C_1},\quad \dot V_{C_2}=rac{I_2}{C_2}$$
+$$\begin{bmatrix}L_1&M\\M&L_2\end{bmatrix}\!\begin{bmatrix}\dot I_1\\\dot I_2\end{bmatrix}
+=\begin{bmatrix}V_{agg}-R_1 I_1-V_{C_1}\\-R_2I_2-V_{C_2}\end{bmatrix},\qquad
+\dot V_{C_1}=\frac{I_1}{C_1},\quad \dot V_{C_2}=\frac{I_2}{C_2}$$
 <p>Secondary is <b>R-dominated</b> for this fast pulse (\(\omega L_2\ll R_2\)), so the induced EMF drops mostly across
-\(R_2\): \(\;I_2pprox -\dfrac{M}{R_2}\dot I_1\). Feeding that into the cap and integrating:</p>
-$$V_{victim}=rac{1}{C_2}\!\int I_2\,dtpprox-rac{M}{R_2C_2}\!\int \dot I_1\,dt
-=-rac{M}{R_2C_2}\,I_1(t)$$
-$$oxed{\,V_{victim,pk}pproxrac{M}{R_2C_2}\,I_{1,pk}
-=rac{M\,V_{agg}}{R_1\,R_2\,C_2}\quad(	ext{since }I_{1,pk}pprox V_{agg}/R_1)\,}$$
+\(R_2\): \(\;I_2\approx -\dfrac{M}{R_2}\dot I_1\). Feeding that into the cap and integrating:</p>
+$$V_{victim}=\frac{1}{C_2}\!\int I_2\,dt\approx-\frac{M}{R_2C_2}\!\int \dot I_1\,dt
+=-\frac{M}{R_2C_2}\,I_1(t)$$
+$$\boxed{\,V_{victim,pk}\approx\frac{M}{R_2C_2}\,I_{1,pk}
+=\frac{M\,V_{agg}}{R_1\,R_2\,C_2}\quad(\text{since }I_{1,pk}\approx V_{agg}/R_1)\,}$$
 <p>That boxed formula is the <b>slow-filter</b> limit (&tau;<sub>2</sub> &gt;&gt; pulse). Two caveats:
 (1) the primary <b>R<sub>1</sub></b> must appear &mdash; it sets I<sub>1,pk</sub>=V<sub>agg</sub>/R<sub>1</sub>; your sketch's
 box "2M V<sub>agg</sub>/R<sub>2</sub>C<sub>2</sub>" dropped it (and used a rectangular area, hence the factor 2).
@@ -283,7 +307,7 @@ box "2M V<sub>agg</sub>/R<sub>2</sub>C<sub>2</sub>" dropped it (and used a recta
 <table>
 <tr><th>Quantity (Case B)</th><th>Formula</th><th>Value</th></tr>
 <tr><td>Induced EMF peak (pre-filter)</td><td>\((M/L_1)V_{agg}\)</td><td class="val">500 mV (M=442 pH, k=0.50)</td></tr>
-<tr><td>Primary peak current</td><td>\(I_{1,pk}pprox V_{agg}/R_1\)</td><td class="val">19.7 mA</td></tr>
+<tr><td>Primary peak current</td><td>\(I_{1,pk}\approx V_{agg}/R_1\)</td><td class="val">19.7 mA</td></tr>
 <tr><td>Slow-filter formula \((M V_{agg}/R_1R_2C_2)\)</td><td>over-reads (&tau;<sub>2</sub>&asymp;pulse)</td><td class="val">177 mV</td></tr>
 <tr><td><b>Filtered victim peak (full 4-state sim)</b></td><td>exact</td><td class="val"><b>100 mV</b></td></tr>
 </table>
@@ -291,7 +315,7 @@ box "2M V<sub>agg</sub>/R<sub>2</sub>C<sub>2</sub>" dropped it (and used a recta
 a 1.8&times; over-read, because &tau;<sub>2</sub> is comparable to the pulse. That is why the table and the
 live Case&nbsp;C use the <b>full simulation</b>, not the closed form.</div>
 
-<h2 id="spec">6. Design spec &amp; simulation results</h2>
+<h2 id="spec">9. Design spec &amp; simulation results</h2>
 <p>Primary: V<sub>agg</sub>=1 V, R<sub>1</sub>=50 &Omega;, L&#8321;=0.88 nH (1 mm wire), C<sub>1</sub>=100 pF; nominal coupling = Case B
 M=441.7 pH (k=0.50); victim R<sub>2</sub>=0 k&Omega;, C<sub>2</sub>=1 pF.</p>
 <table>
@@ -299,7 +323,7 @@ M=441.7 pH (k=0.50); victim R<sub>2</sub>=0 k&Omega;, C<sub>2</sub>=1 pF.</p>
 <tr><td class="rank">#1</td><td class="ic">🎯</td><td>Victim peak (filtered, Case B)</td><td class="sym">V<sub>victim</sub> across C<sub>2</sub></td><td>&le; 150 mV</td><td><div class="barwrap"><div class="bar" style="width:67%;background:#36B37E"></div><span>100 mV</span></div></td><td style="color:#36B37E;font-weight:600">✅ pass</td></tr><tr><td class="rank">#2</td><td class="ic">⚡</td><td>Induced EMF peak (pre-filter)</td><td class="sym">(M/L&#8321;)V<sub>agg</sub></td><td>info</td><td><div class="barwrap"><div class="bar" style="width:83%;background:#7A869A"></div><span>500 mV</span></div></td><td style="color:#7A869A;font-weight:600">ℹ️ info</td></tr><tr><td class="rank">#3</td><td class="ic">🔗</td><td>Coupling coefficient (Case B)</td><td class="sym">k=M/&radic;(L&#8321;L&#8322;)</td><td>&le; 0.6</td><td><div class="barwrap"><div class="bar" style="width:83%;background:#36B37E"></div><span>0.50</span></div></td><td style="color:#36B37E;font-weight:600">✅ pass</td></tr><tr><td class="rank">#4</td><td class="ic">🌊</td><td>Damping (no ring)</td><td class="sym">&zeta;</td><td>&ge; 1.0</td><td><div class="barwrap"><div class="bar" style="width:93%;background:#36B37E"></div><span>8.41</span></div></td><td style="color:#36B37E;font-weight:600">✅ pass</td></tr><tr><td class="rank">#5</td><td class="ic">🔌</td><td>Peak loop current</td><td class="sym">I&#8321;,<sub>pk</sub></td><td>&le; 25 mA</td><td><div class="barwrap"><div class="bar" style="width:79%;background:#36B37E"></div><span>19.7 mA</span></div></td><td style="color:#36B37E;font-weight:600">✅ pass</td></tr><tr><td class="rank">#6</td><td class="ic">📉</td><td>Primary decay</td><td class="sym">&tau;=R<sub>1</sub>C<sub>1</sub></td><td>&le; 6 ns</td><td><div class="barwrap"><div class="bar" style="width:83%;background:#36B37E"></div><span>5.0 ns</span></div></td><td style="color:#36B37E;font-weight:600">✅ pass</td></tr><tr><td class="rank">#7</td><td class="ic">🧯</td><td>Victim filter (light)</td><td class="sym">&tau;<sub>2</sub>=R<sub>2</sub>C<sub>2</sub></td><td>info</td><td><div class="barwrap"><div class="bar" style="width:50%;background:#7A869A"></div><span>50 ps</span></div></td><td style="color:#7A869A;font-weight:600">ℹ️ info</td></tr><tr><td class="rank">#8</td><td class="ic">📡</td><td>Natural frequency</td><td class="sym">f&#8320;</td><td>info</td><td><div class="barwrap"><div class="bar" style="width:89%;background:#7A869A"></div><span>535 MHz</span></div></td><td style="color:#7A869A;font-weight:600">ℹ️ info</td></tr>
 </table>
 
-<h2 id="model">7. Python model (coupled 4-state)</h2>
+<h2 id="model">10. Python model (coupled 4-state)</h2>
 <pre>mu0,l,w,t = 4e-7*np.pi, 1e-3, 30e-6, 10e-6
 L1 = L2 = mu0*l/(2*np.pi)*(np.log(2*l/(w+t))+0.5+0.2235*(w+t)/l)   # 0.88 nH  (1 mm wire)
 R1, C1, Vagg = 50.0, 100e-12, 1.0          # primary
@@ -318,7 +342,7 @@ sol  = solve_ivp(rhs,(0,40e-9),[0,0,0,0],rtol=1e-10,atol=1e-15)
 Vvic = sol.y[3]                             # victim = voltage across C2
 Vpk  = np.max(np.abs(Vvic))                 # filtered peak  (~100.00 mV)</pre>
 
-<h2 id="src">8. Sources</h2>
+<h2 id="src">11. Sources</h2>
 <ol class="refs">
 <li id="r1">[1] R. Blaymore, <i>EELE 461/561 &mdash; Module 05: Crosstalk</i>, Montana State University &mdash; V<sub>M</sub>=L<sub>M</sub>dI/dt, coupled-line model.
 <a href="https://www.montana.edu/blameres/courses/eele461/lecture_notes/eele461_module_05.pdf">montana.edu/&hellip;/eele461_module_05.pdf</a></li>
@@ -332,7 +356,7 @@ Vpk  = np.max(np.abs(Vvic))                 # filtered peak  (~100.00 mV)</pre>
 <a href="https://www.interviews.chat/questions/signal-integrity-engineer">interviews.chat/&hellip;/signal-integrity-engineer</a></li>
 </ol>
 
-<h2 id="iq">9. Design question asked in an interview</h2>
+<h2 id="iq">12. Design question asked in an interview</h2>
 <div class="q"><b>Q1 [SI role &mdash; ClimbTheLadder<sup><a href="#r4">[4]</a></sup>]</b><br>
 &ldquo;<i>A victim net has a receiver R and C to ground. Does that make crosstalk better or worse, and why?</i>&rdquo;<br>
 <b>Answer:</b> The R<sub>2</sub>C<sub>2</sub> forms a low-pass that <b>integrates</b> the induced EMF (M dI&#8321;/dt),
@@ -356,54 +380,122 @@ against primary sources before use. Educational; trademarks belong to their owne
 </div>
 <script>
 (function(){
-  var mu0=4*Math.PI*1e-7, l=1e-3, w=30e-6, t=10e-6;
-  var L1=8.841926010856293e-10, L2=L1, R1=50.0, C1=100e-12, Vagg0=1.0;
-  var alpha=0.019701023080390737;
+  // ---------- coupling engine ----------
+  // Mutual inductance of two parallel traces (overlap length L, center spacing d):
+  var MU0=4*Math.PI*1e-7;
   function asinh(z){return Math.log(z+Math.sqrt(z*z+1));}
-  function Mof(d){return mu0*l/(2*Math.PI)*(asinh(l/d)-Math.sqrt(1+(d/l)*(d/l))+d/l);}
-  function fV(v){var a=Math.abs(v); return a<1e-3? (v*1e6).toFixed(1)+' µV' : a<1? (v*1e3).toPrecision(3)+' mV' : v.toPrecision(3)+' V';}
-  function fM(M){var p=M*1e12; return p<1000? p.toFixed(2)+' pH' : (M*1e9).toFixed(3)+' nH';}
-  function fT(s){var n=s*1e12; return n<1000? n.toFixed(0)+' ps' : (s*1e9).toFixed(2)+' ns';}
-  function num(id){return parseFloat(document.getElementById(id).value);}
-  // exact 4-state RK4 solve -> peak |Vc2|
-  function victimPeak(M,R2,C2,Vg){
-    var det=L1*L2-M*M;
-    function f(x){
-      var I1=x[0],Vc1=x[1],I2=x[2],Vc2=x[3];
-      var b1=Vg-R1*I1-Vc1, b2=-R2*I2-Vc2;
-      return [(L2*b1-M*b2)/det, I1/C1, (-M*b1+L1*b2)/det, I2/C2];
-    }
-    var x=[0,0,0,0], T=8e-9, N=16000, dt=T/N, vpk=0;
-    for(var i=0;i<N;i++){
-      var k1=f(x);
-      var x2=[x[0]+0.5*dt*k1[0],x[1]+0.5*dt*k1[1],x[2]+0.5*dt*k1[2],x[3]+0.5*dt*k1[3]];
-      var k2=f(x2);
-      var x3=[x[0]+0.5*dt*k2[0],x[1]+0.5*dt*k2[1],x[2]+0.5*dt*k2[2],x[3]+0.5*dt*k2[3]];
-      var k3=f(x3);
-      var x4=[x[0]+dt*k3[0],x[1]+dt*k3[1],x[2]+dt*k3[2],x[3]+dt*k3[3]];
-      var k4=f(x4);
-      for(var j=0;j<4;j++) x[j]+=dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]);
-      var a=Math.abs(x[3]); if(a>vpk) vpk=a;
-    }
-    return vpk;
+  function Mmut(d,L){return MU0*L/(2*Math.PI)*(asinh(L/d)-Math.sqrt(1+(d/L)*(d/L))+d/L);}
+  // Closed-form filtered victim peak (slow-filter estimate, conservative):
+  //   V_victim,pk = M * Vagg / (R1 * R2 * C2)
+  function victimPeak(M,Vg,R1,R2,C2){return M*Vg/(R1*R2*C2);}
+  // ---------- formatting ----------
+  function fV(v){var a=Math.abs(v);return a<1e-3?(v*1e6).toFixed(1)+' µV':a<1?(v*1e3).toPrecision(3)+' mV':v.toPrecision(3)+' V';}
+  function fM(M){var p=M*1e12;return p<1000?p.toFixed(1)+' pH':(M*1e9).toFixed(3)+' nH';}
+  // ---------- data ----------
+  var IC=['Controller','SPS','Host','Else'], ICN={Controller:'1. Controller',SPS:'2. SPS',Host:'3. Host',Else:'4. Else'};
+  var FN=['PWM','digital-hs','power/gnd','analog-drive','current-sense','analog-Vsense'];
+  var AGGR=[
+    {ic:'Controller',pad:'PWM_HDRV',fn:'PWM',       dV:5,  dVdt:10,f:1,  Rout:10,w:200,t:35,len:8},
+    {ic:'SPS',       pad:'SW_NODE', fn:'PWM',       dV:12, dVdt:20,f:1,  Rout:5, w:300,t:70,len:12},
+    {ic:'Host',      pad:'CLK_100M',fn:'digital-hs',dV:1.8,dVdt:8, f:100,Rout:40,w:100,t:35,len:6}
+  ];
+  var VICT=[
+    {ic:'SPS',       pad:'ISEN_CS', fn:'current-sense',Verr:1,  Rin:1000, Cin:10, d:200, w:150,t:35,len:6},
+    {ic:'Controller',pad:'VSEN_SVC',fn:'analog-Vsense',Verr:100,Rin:50,   Cin:1,  d:500, w:150,t:35,len:6},
+    {ic:'Host',      pad:'VREF',    fn:'analog-Vsense',Verr:5,  Rin:10000,Cin:5,  d:1000,w:120,t:35,len:4},
+    {ic:'Controller',pad:'VDD_GND', fn:'power/gnd',    Verr:200,Rin:10,   Cin:100,d:300, w:400,t:70,len:10}
+  ];
+  var AKEYS=[['dV',5],['dVdt',5],['f',4],['Rout',6],['w',7],['t',8],['len',9]];
+  var VKEYS=[['Verr',3],['Rin',4],['Cin',5],['d',6],['w',7],['t',8],['len',9]];
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  // ---------- render editable tables ----------
+  function icSel(cur){return '<select class="ic">'+IC.map(function(o){return '<option value="'+o+'"'+(o===cur?' selected':'')+'>'+ICN[o]+'</option>';}).join('')+'</select>';}
+  function fnSel(cur){return '<select class="fn">'+FN.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';}
+  function ti(v){return '<input class="tin" value="'+v+'">';}
+  function renderAggr(){
+    document.querySelector('#aggrTbl tbody').innerHTML=AGGR.map(function(r,i){return '<tr data-i="'+i+'">'+
+      '<td>'+icSel(r.ic)+'</td>'+
+      '<td><input class="tin tpad pad" value="'+esc(r.pad)+'"></td>'+
+      '<td>'+fnSel(r.fn)+'</td>'+
+      AKEYS.map(function(k){return '<td>'+ti(r[k[0]])+'</td>';}).join('')+
+      '<td><button class="del">✕</button></td></tr>';}).join('');
   }
-  function recalc(){
-    var dmm=num('cD'), Ro=num('cRv'), Cp=num('cCv'), Vg=num('cVagg');
-    var el=document.getElementById('cVpk');
-    if(!(dmm>0)||!(Ro>0)||!(Cp>0)||!(Vg>=0)){el.textContent='—'; return;}
-    var d=dmm*1e-3, R2=Ro, C2=Cp*1e-12;
-    var M=Mof(d), I1pk=alpha*Vg, emf=M/L1*Vg, tau=R2*C2;
-    var vfilt=victimPeak(M,R2,C2,Vg);
-    document.getElementById('cM').textContent=fM(M);
-    document.getElementById('cEmf').textContent=fV(emf);
-    document.getElementById('cAtt').textContent=(emf/vfilt).toFixed(1)+'×';
-    document.getElementById('cTau').textContent=fT(tau);
-    document.getElementById('cI1').textContent=(I1pk*1e3).toFixed(1)+' mA';
-    el.textContent=fV(vfilt);
-    el.style.color = vfilt<=1e-3? '#1f8a58' : (vfilt<=100e-3? '#B25E00':'#C9372C');
+  function renderVict(){
+    document.querySelector('#victTbl tbody').innerHTML=VICT.map(function(r,i){return '<tr data-i="'+i+'">'+
+      '<td>'+icSel(r.ic)+'</td>'+
+      '<td><input class="tin tpad pad" value="'+esc(r.pad)+'"></td>'+
+      '<td>'+fnSel(r.fn)+'</td>'+
+      VKEYS.map(function(k){return '<td>'+ti(r[k[0]])+'</td>';}).join('')+
+      '<td><button class="del">✕</button></td></tr>';}).join('');
   }
-  ['cD','cRv','cCv','cVagg'].forEach(function(id){document.getElementById(id).addEventListener('input',recalc);});
-  recalc();
+  // ---------- read inputs back into arrays ----------
+  function readRow(tr,rec,keys){
+    rec.ic=tr.querySelector('select.ic').value;
+    rec.fn=tr.querySelector('select.fn').value;
+    rec.pad=tr.querySelector('input.pad').value;
+    var tins=tr.querySelectorAll('input.tin:not(.pad)');
+    keys.forEach(function(k,ix){var v=parseFloat(tins[ix].value);rec[k[0]]=isFinite(v)?v:0;});
+  }
+  function syncArrays(){
+    document.querySelectorAll('#aggrTbl tbody tr').forEach(function(tr){readRow(tr,AGGR[+tr.dataset.i],AKEYS);});
+    document.querySelectorAll('#victTbl tbody tr').forEach(function(tr){readRow(tr,VICT[+tr.dataset.i],VKEYS);});
+  }
+  // ---------- spec checker ----------
+  function runChecker(){
+    var pairs=[], vworst={};
+    AGGR.forEach(function(a){
+      var Vg=a.dV, R1=a.Rout>0?a.Rout:1e-3;
+      VICT.forEach(function(v){
+        var ov=Math.min(a.len,v.len)*1e-3, d=v.d*1e-6, R2=v.Rin>0?v.Rin:1e-3, C2=v.Cin*1e-12;
+        if(!(d>0)||!(ov>0)||!(C2>0)){return;}
+        var M=Mmut(d,ov);
+        var vp=Math.min(victimPeak(M,Vg,R1,R2,C2),Math.abs(Vg));   // cap at source swing
+        var verr=v.Verr*1e-3, ratio=vp/verr;
+        pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,verr:verr,ratio:ratio,pass:vp<=verr});
+        var vk=v.ic+'|'+v.pad;
+        if(!vworst[vk]||vp>vworst[vk].vp)vworst[vk]={v:v,a:a,vp:vp,verr:verr,pass:vp<=verr};
+      });
+    });
+    pairs.sort(function(x,y){return y.ratio-x.ratio;});
+    var cb=document.querySelector('#chkTbl tbody');
+    cb.innerHTML=pairs.map(function(p){return '<tr class="'+(p.pass?'p':'f')+'">'+
+      '<td>'+esc(p.a.ic)+' · <b>'+esc(p.a.pad)+'</b></td>'+
+      '<td>'+esc(p.v.ic)+' · <b>'+esc(p.v.pad)+'</b></td>'+
+      '<td>'+p.d+'</td><td>'+p.ov.toFixed(2)+'</td>'+
+      '<td>'+fM(p.M)+'</td>'+
+      '<td class="'+(p.pass?'pass':'fail')+'">'+fV(p.vp)+'</td>'+
+      '<td>'+fV(p.verr)+'</td>'+
+      '<td>'+(p.ratio>=1?p.ratio.toFixed(1)+'×':(p.ratio*100).toFixed(0)+'%')+'</td>'+
+      '<td><span class="stat-badge '+(p.pass?'b-pass':'b-fail')+'">'+(p.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('')
+      || '<tr><td colspan="9" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
+    var sb=document.querySelector('#sumTbl tbody');
+    sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var margin=s.verr-s.vp;
+      return '<tr>'+
+      '<td>'+esc(s.v.ic)+' · <b>'+esc(s.v.pad)+'</b></td>'+
+      '<td>'+fV(s.verr)+'</td>'+
+      '<td>'+esc(s.a.ic)+' · '+esc(s.a.pad)+'</td>'+
+      '<td class="'+(s.pass?'pass':'fail')+'">'+fV(s.vp)+'</td>'+
+      '<td class="'+(s.pass?'pass':'fail')+'">'+(margin>=0?'+':'')+fV(margin)+'</td>'+
+      '<td><span class="stat-badge '+(s.pass?'b-pass':'b-fail')+'">'+(s.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('');
+  }
+  function refresh(){syncArrays();runChecker();}
+  // ---------- events ----------
+  ['aggrTbl','victTbl'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.addEventListener('input',refresh);
+    el.addEventListener('change',refresh);
+    el.addEventListener('click',function(e){
+      if(e.target.classList.contains('del')){
+        var i=+e.target.closest('tr').dataset.i;
+        (id==='aggrTbl'?AGGR:VICT).splice(i,1);renderAggr();renderVict();refresh();
+      }
+    });
+  });
+  document.getElementById('addAggr').addEventListener('click',function(){
+    AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVdt:5,f:1,Rout:50,w:150,t:35,len:5});renderAggr();refresh();});
+  document.getElementById('addVict').addEventListener('click',function(){
+    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Cin:5,d:500,w:150,t:35,len:5});renderVict();refresh();});
+  renderAggr();renderVict();refresh();
 })();
 </script>
 <footer style="max-width:900px;margin:40px auto 24px;padding:16px 20px;border-top:1px solid #d6dbe3;font:14px Georgia,serif;color:#5a6472;text-align:center"><a href="https://borenw.github.io/" style="color:#0052CC;text-decoration:none;font-weight:600">Page 30 &middot; Bo&#39;s Engineering Curriculum</a></footer>
