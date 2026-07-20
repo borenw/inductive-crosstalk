@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev20</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev21</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev20</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev21</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -339,24 +339,27 @@ M=441.7 pH (k=0.50); victim R<sub>2</sub>=0 k&Omega;, C<sub>2</sub>=1 pF.</p>
 </table>
 
 <h2 id="model">10. Python model (coupled 4-state)</h2>
-<p>Self-contained &mdash; <b>copy, paste, run</b> with nothing but the <b>Python standard library</b> (no numpy / scipy / matplotlib). It builds the mutual inductance from the geometry, RK4-solves the 4-state ODE, and prints an <b>ASCII waveform with the peak marked (<code>*</code>) and its value labeled</b> &mdash; reproducing the <b>default-populated Spec&nbsp;Checker case</b> (&sect;5&ndash;7): aggressor <span class="val">PWM_HDRV</span> into <span class="val">ISEN_CS1</span> (R<sub>in</sub>=200&nbsp;&Omega; &rarr; <b>3.18&nbsp;mV, FAIL</b>) and <span class="val">ISEN_CS2</span> (R<sub>in</sub>=1000&nbsp;&Omega; &rarr; <b>0.85&nbsp;mV, PASS</b> vs the 1&nbsp;mV budget). Same file in the repo: <a href="inductive_crosstalk_model.py">inductive_crosstalk_model.py</a>.</p>
-<pre># Coupled 4-state inductive-crosstalk model — copy, paste, run.  PURE STANDARD LIBRARY.
-#   python3 this_file.py      # no numpy / scipy / matplotlib needed; prints an ASCII waveform
+<p>Self-contained &mdash; <b>copy, paste, run</b> with nothing but the <b>Python standard library</b> (no numpy / scipy / matplotlib). It builds the mutual inductance from the geometry, RK4-solves the 4-state ODE, and prints an <b>ASCII waveform with a V<sub>err</sub> spec line</b> &mdash; the trace <span style="color:#DE350B;font-weight:700">beyond spec is red</span>, the part <span style="color:#1f8a58;font-weight:700">within spec green</span>, with the peak marked (<code>*</code>) and labeled &mdash; reproducing the <b>default-populated Spec&nbsp;Checker case</b> (&sect;5&ndash;7): aggressor <span class="val">PWM_HDRV</span> into <span class="val">ISEN_CS1</span> (R<sub>in</sub>=200&nbsp;&Omega; &rarr; <b>3.18&nbsp;mV, FAIL</b>) and <span class="val">ISEN_CS2</span> (R<sub>in</sub>=1000&nbsp;&Omega; &rarr; <b>0.85&nbsp;mV, PASS</b> vs the 1&nbsp;mV budget). Same file in the repo: <a href="inductive_crosstalk_model.py">inductive_crosstalk_model.py</a>.</p>
+<pre># Coupled 4-state inductive-crosstalk model — copy, paste, run (pure standard library).
+#   python3 this_file.py          # no numpy / scipy / matplotlib needed; prints an ASCII waveform
 #
 # Reproduces the DEFAULT case populated in the Spec Checker (section 7):
 #   aggressor PWM_HDRV : dV=5 V, Rout=100 ohm, 30x10 um trace, 4000 um long
 #   victims  ISEN_CS1 (Rin=200 ohm) and ISEN_CS2 (Rin=1000 ohm), Cin=1 pF, d=100 um, 150 um long
+# The waveform is drawn with a Verr spec line; the part of the trace BEYOND spec is red, the
+# part within spec is green (ANSI colors — most terminals show them).
 import math
 mu0 = 4e-7*math.pi
+RED, GREEN, RESET = &quot;\033[91m&quot;, &quot;\033[92m&quot;, &quot;\033[0m&quot;
 
 def Lself(L,w,t): return mu0*L/(2*math.pi)*(math.log(2*L/(w+t))+0.5+0.2235*(w+t)/L)  # trace self-L
 def Mmut(d,L):    return mu0*L/(2*math.pi)*(math.asinh(L/d)-math.sqrt(1+(d/L)**2)+d/L) # parallel mutual
 
 # --- default-populated geometry / drive ---
 Vagg, R1, C1 = 5.0, 100.0, 100e-12
-La = Lself(4000e-6, 30e-6, 10e-6)          # aggressor self-inductance (4 mm)
-Lv = Lself( 150e-6, 30e-6, 10e-6)          # victim self-inductance (150 um)
-M  = Mmut(100e-6, min(4000e-6, 150e-6))    # mutual over 150 um overlap at d = 100 um
+La = Lself(4000e-6, 30e-6, 10e-6)      # aggressor self-inductance (4 mm trace)
+Lv = Lself( 150e-6, 30e-6, 10e-6)      # victim self-inductance (150 um trace)
+M  = Mmut(100e-6, min(4000e-6, 150e-6))# mutual over the 150 um overlap at d = 100 um
 
 def simulate(R2, C2):
     &quot;&quot;&quot;RK4 solve of x=[I1,Vc1,I2,Vc2]; returns (times, victim voltage across C2).&quot;&quot;&quot;
@@ -377,80 +380,110 @@ def simulate(R2, C2):
         ts.append((i+1)*dt); vs.append(x[3])
     return ts, vs
 
-def ascii_plot(ts, vs, title, W=60, H=15):
-    &quot;&quot;&quot;ASCII waveform of V(t) with the peak marked and its value annotated.&quot;&quot;&quot;
+def _paint(chars, cols):
+    &quot;&quot;&quot;chars: list of characters; cols: list of None/&#x27;r&#x27;/&#x27;g&#x27; -&gt; ANSI string (run-length grouped).&quot;&quot;&quot;
+    out=&quot;&quot;; i=0; n=len(chars)
+    while i&lt;n:
+        c=cols[i]
+        if c is None: out+=chars[i]; i+=1
+        else:
+            j=i
+            while j&lt;n and cols[j]==c: j+=1
+            out+=(RED if c==&#x27;r&#x27; else GREEN)+&quot;&quot;.join(chars[i:j])+RESET; i=j
+    return out
+
+def ascii_plot(ts, vs, title, Verr, W=60, H=17):
+    &quot;&quot;&quot;ASCII waveform with a Verr spec line; trace beyond +/-Verr is red, within is green.&quot;&quot;&quot;
     ip = max(range(len(vs)), key=lambda i: abs(vs[i])); vpk, tpk = vs[ip], ts[ip]
     Tplot = min(max(9*tpk, 300e-12), ts[-1])
-    lo, hi = min(0.0, min(vs)), max(0.0, max(vs))
-    if hi==lo: hi = lo+1e-9
+    lo = min(0.0, min(vs), -Verr*1.15); hi = max(0.0, max(vs), Verr*1.15)  # keep +/-Verr in view
     row = lambda v: min(H-1, max(0, int(round((hi-v)/(hi-lo)*(H-1)))))
     col = lambda t: min(W-1, max(0, int(round(t/Tplot*(W-1)))))
-    grid=[[&#x27; &#x27;]*W for _ in range(H)]; r0=row(0.0)
-    for c in range(W): grid[r0][c]=&#x27;-&#x27;                       # zero axis
+    grid=[[&#x27; &#x27;]*W for _ in range(H)]; cols=[[None]*W for _ in range(H)]
+    rSp, rSm, r0 = row(Verr), row(-Verr), row(0.0)
+    for c in range(W):                                   # dashed spec lines at +/-Verr
+        if c%3==0:
+            if grid[rSp][c]==&#x27; &#x27;: grid[rSp][c]=&#x27;.&#x27;
+            if grid[rSm][c]==&#x27; &#x27;: grid[rSm][c]=&#x27;.&#x27;
+    for c in range(W): grid[r0][c]=&#x27;-&#x27;                   # zero axis
     pkc=col(tpk); j=0
-    for c in range(W):
+    for c in range(W):                                   # curve (on top), colored by spec
         tt=c/(W-1)*Tplot
         while j+1&lt;len(ts) and ts[j+1]&lt;tt: j+=1
-        grid[row(vs[j])][c] = &#x27;*&#x27; if c==pkc else &#x27;o&#x27;         # curve, &#x27;*&#x27; at peak
-    ann=&#x27; &lt;- peak = %.3f mV&#x27;%(vpk*1e3); rp=row(vpk)          # inline annotation
-    s=max(0, min(pkc+2, W-len(ann)-1))
-    for i,ch in enumerate(ann):
-        if s+i&lt;W: grid[rp][s+i]=ch
-    ylab={0:&#x27;%7.3f&#x27;%(hi*1e3), r0:&#x27;%7.3f&#x27;%0.0, H-1:&#x27;%7.3f&#x27;%(lo*1e3)}
+        r=row(vs[j]); beyond = abs(vs[j])&gt;Verr
+        grid[r][c] = &#x27;*&#x27; if c==pkc else &#x27;o&#x27;
+        cols[r][c] = &#x27;r&#x27; if beyond else &#x27;g&#x27;
+    ann=&#x27; &lt;- peak = %.3f mV&#x27;%(vpk*1e3); rp=row(vpk); s=max(0,min(pkc+2,W-len(ann)-1))
+    for i,ch in enumerate(ann):                          # peak label (color = peak&#x27;s spec state)
+        if s+i&lt;W and grid[rp][s+i]==&#x27; &#x27;:
+            grid[rp][s+i]=ch; cols[rp][s+i] = &#x27;r&#x27; if abs(vpk)&gt;Verr else &#x27;g&#x27;
+    slab=&#x27; spec (Verr)&#x27;                                  # spec-line tag on the -Verr row
+    s2=W-len(slab)
+    for i,ch in enumerate(slab):
+        if 0&lt;=s2+i&lt;W and grid[rSm][s2+i] in &#x27; .&#x27;: grid[rSm][s2+i]=ch
+    ylab={0:&#x27;%7.3f&#x27;%(hi*1e3), r0:&#x27;%7.3f&#x27;%0.0, rSm:&#x27;%7.3f&#x27;%(-Verr*1e3), H-1:&#x27;%7.3f&#x27;%(lo*1e3)}
     out=[title]
-    for ri,rc in enumerate(grid): out.append(ylab.get(ri,&#x27;       &#x27;)+&#x27; |&#x27;+&#x27;&#x27;.join(rc))
+    for ri in range(H):
+        out.append(ylab.get(ri,&#x27;       &#x27;)+&#x27; |&#x27;+_paint(grid[ri], cols[ri]))
     out.append(&#x27;        +&#x27;+&#x27;-&#x27;*W)
     out.append(&#x27;        0&#x27;+&#x27; &#x27;*(W//2-4)+&#x27;time [ps]&#x27;+&#x27; &#x27;*(W//2-13)+&#x27;%d&#x27;%round(Tplot*1e12))
     return &#x27;\n&#x27;.join(out), vpk
 
 print(&quot;La=%.3f nH   Lv=%.4f nH   M=%.2f pH   (Vagg=%.0f V, R1=%.0f ohm, Cin=1 pF)\n&quot;
       % (La*1e9, Lv*1e9, M*1e12, Vagg, R1))
+Verr = 1e-3
 for name, Rin in [(&quot;ISEN_CS1&quot;, 200.0), (&quot;ISEN_CS2&quot;, 1000.0)]:
     ts, vs = simulate(Rin, 1e-12)
-    plot, vpk = ascii_plot(ts, vs, &quot;PWM_HDRV -&gt; %s  (Rin=%.0f ohm)  [victim V across C2, mV]&quot;%(name,Rin))
-    print(plot); print(&quot;        Verr = 1.000 mV   -&gt;   %s\n&quot;%(&quot;PASS&quot; if abs(vpk)&lt;=1e-3 else &quot;FAIL&quot;))</pre>
+    plot, vpk = ascii_plot(ts, vs, &quot;PWM_HDRV -&gt; %s  (Rin=%.0f ohm)  [victim V across C2, mV]&quot;%(name,Rin), Verr)
+    ok = abs(vpk) &lt;= Verr
+    print(plot)
+    print(&quot;        Verr = %.3f mV   -&gt;   %s%s%s\n&quot; % (Verr*1e3, GREEN if ok else RED, &quot;PASS&quot; if ok else &quot;FAIL&quot;, RESET))</pre>
 <div class="note">&#9654; <b>Result</b> (printed to the terminal on run):</div>
 <pre id="asciiout" style="background:#0b1020;color:#c8e1ff;border-color:#0b1020">La=4.640 nH   Lv=0.0772 nH   M=19.79 pH   (Vagg=5 V, R1=100 ohm, Cin=1 pF)
 
-<span style="color:#f87171">PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
-  0.000 |o----------------------------------------------------------o
-        |                                            ooooooooooooooo 
-        |                                    oooooooo                
-        |                               ooooo                        
-        |                            ooo                             
-        | o                       ooo                                
-        |                      ooo                                   
-        |                    oo                                      
-        |                  oo                                        
-        |  o             oo                                          
-        |               o                                            
-        |   o         oo                                             
-        |           oo                                               
-        |    o    oo                                                 
- -3.176 |     oo*o &lt;- peak = -3.176 mV                               
+PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
+  1.150 |                                                            
+        |.  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  
+        |                                                            
+        |                                                            
+  0.000 |<span style="color:#4ade80">o</span>-------------------------------------------------------<span style="color:#4ade80">oooo</span>
+        |                                         <span style="color:#4ade80">ooooooooooooooo</span>    
+        |                                  <span style="color:#4ade80">ooooooo</span>                   
+        |                             <span style="color:#4ade80">ooooo</span>                          
+ -1.000 |.  .  .  .  .  .  .  .  .<span style="color:#f87171">oo</span><span style="color:#4ade80">oo</span> .  .  .  .  .  .   spec (Verr)
+        | <span style="color:#f87171">o</span>                    <span style="color:#f87171">ooo</span>                                   
+        |                    <span style="color:#f87171">oo</span>                                      
+        |                  <span style="color:#f87171">oo</span>                                        
+        |  <span style="color:#f87171">o</span>             <span style="color:#f87171">oo</span>                                          
+        |              <span style="color:#f87171">oo</span>                                            
+        |   <span style="color:#f87171">o</span>        <span style="color:#f87171">oo</span>                                              
+        |    <span style="color:#f87171">o</span>    <span style="color:#f87171">ooo</span>                                                
+ -3.176 |     <span style="color:#f87171">oo*o &lt;- peak = -3.176 mV</span>                               
         +------------------------------------------------------------
         0                          time [ps]                 792
-        Verr = 1.000 mV   -&gt;   FAIL</span>
+        Verr = 1.000 mV   -&gt;   <span style="color:#f87171">FAIL</span>
 
-<span style="color:#4ade80">PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
-  0.060 |                                                            
-  0.000 |o-----------------------------------------------------------
+PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
+  1.150 |                                                            
+        |.  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  
         |                                                            
         |                                                            
-        |                                                         ooo
-        |                                                 oooooooo   
-        |                                          ooooooo           
-        | o                                  oooooo                  
-        |                               ooooo                        
-        |                          ooooo                             
-        |  o                   oooo                                  
-        |                  oooo                                      
-        |   o          oooo                                          
-        |    o     oooo                                              
- -0.846 |     oo*o &lt;- peak = -0.846 mV                               
+        |                                                            
+        |                                                            
+        |                                                            
+        |                                                            
+  0.000 |<span style="color:#4ade80">o</span>-----------------------------------------------------------
+        |                                                           <span style="color:#4ade80">o</span>
+        |                                          <span style="color:#4ade80">ooooooooooooooooo</span> 
+        | <span style="color:#4ade80">o</span>                            <span style="color:#4ade80">oooooooooooo</span>                  
+        |  <span style="color:#4ade80">o</span>                 <span style="color:#4ade80">oooooooooo</span>                              
+        |   <span style="color:#4ade80">o</span>        <span style="color:#4ade80">oooooooo</span>                                        
+        |    <span style="color:#4ade80">ooo*oooo peak = -0.846 mV</span>                               
+ -1.000 |.  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .   spec (Verr)
+ -1.150 |                                                            
         +------------------------------------------------------------
         0                          time [ps]                 1310
-        Verr = 1.000 mV   -&gt;   PASS</span></pre>
+        Verr = 1.000 mV   -&gt;   <span style="color:#4ade80">PASS</span></pre>
 
 <h2 id="src">11. Sources</h2>
 <ol class="refs">
