@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev21</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev22</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev21</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev22</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -254,6 +254,11 @@ revisions.</p>
   <span class="mchip m-off">🔋 PDN / IR drop</span>
   <span class="mchip m-off">📡 Reflection / ISI</span>
   <span class="mchip m-off">🌡️ Thermal</span>
+</div>
+
+<div class="sitool" style="margin:14px 0">
+  <button class="btn" id="genReport" style="font-size:14px;padding:9px 16px">📄 Generate spec output .html</button>
+  <span style="font-size:12.5px;color:#5E6C84;margin-left:8px">&mdash; builds a standalone report (index on top, one spec table per victim net: M / d / L limits vs actual) and opens it in a new tab.</span>
 </div>
 
 <p style="margin-top:16px"><b>Per-victim verdict</b> &mdash; worst aggressor for each victim (inductive only):</p>
@@ -660,6 +665,69 @@ against primary sources before use. Educational; trademarks belong to their owne
       '<td><span class="stat-badge '+(s.pass?'b-pass':'b-fail')+'">'+(s.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('');
   }
   function refresh(){syncArrays();runChecker();}
+  // ---------- spec-output report (.html) ----------
+  // invert M(d,L): M decreases with d, increases with L -> geometric bisection
+  function dForM(L,Mt){var lo=1e-10,hi=100;for(var i=0;i<90;i++){var m=Math.sqrt(lo*hi);if(Mmut(m,L)>Mt)lo=m;else hi=m;}return Math.sqrt(lo*hi);}
+  function LForM(d,Mt){var lo=1e-10,hi=100;for(var i=0;i<90;i++){var m=Math.sqrt(lo*hi);if(Mmut(d,m)<Mt)lo=m;else hi=m;}return Math.sqrt(lo*hi);}
+  function um(x){var u=x*1e6;return u>=1e4?(u/1e3).toPrecision(4)+' mm':u.toPrecision(4)+' µm';}
+  function pH(x){var p=x*1e12;return p<1000?p.toPrecision(4)+' pH':(x*1e9).toPrecision(4)+' nH';}
+  function slug(s){return s.replace(/[^A-Za-z0-9]+/g,'_');}
+  function buildReport(){
+    syncArrays();
+    var groups={}, order=[];
+    VICT.forEach(function(v){var key=v.ic+'|'+v.pad; if(!groups[key]){groups[key]={v:v,rows:[]};order.push(key);}
+      AGGR.forEach(function(a){
+        var Vg=a.dV,R1=a.Rout>0?a.Rout:1e-3,R2=v.Rin>0?v.Rin:1e-3,C2=v.Cin*1e-12,Verr=v.Verr*1e-3;
+        var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6;
+        if(!(d>0)||!(ov>0)||!(C2>0))return;
+        var Mact=Mmut(d,ov), Mmax=Verr*R1*R2*C2/Vg;
+        var dmin=dForM(ov,Mmax), Lmax=LForM(d,Mmax), Vpk=Mact*Vg/(R1*R2*C2);
+        groups[key].rows.push({a:a,Mact:Mact,Mmax:Mmax,dmin:dmin,Lmax:Lmax,dact:d,Lact:ov,Vpk:Vpk,Verr:Verr,pass:Mact<=Mmax});
+      });
+    });
+    var css='body{font:14px -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#172B4D;max-width:1000px;margin:24px auto;padding:0 18px}'
+      +'h1{color:#0052CC}h2{background:#0052CC;color:#fff;padding:7px 12px;border-radius:4px;font-size:17px;margin-top:30px}'
+      +'table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}th{background:#DEEBFF;text-align:left;padding:7px 9px;border:1px solid #B3D4FF}'
+      +'td{padding:6px 9px;border:1px solid #DFE1E6}.pass{color:#006644;font-weight:700}.fail{color:#DE350B;font-weight:700}'
+      +'.b{display:inline-block;padding:2px 9px;border-radius:4px;font-weight:700;font-size:12px}.bp{background:#E3FCEF;color:#006644}.bf{background:#FFEBE6;color:#DE350B}'
+      +'.idx{background:#F4F5F7;border:1px solid #DFE1E6;border-left:4px solid #0052CC;border-radius:4px;padding:10px 18px}a{color:#0052CC}'
+      +'.sub{color:#5E6C84;font-size:12.5px}code{font-family:Consolas,monospace;color:#0747A6}';
+    var idx='<div class="idx"><b>📄 Index — victim nets</b><ul>';
+    var body='';
+    order.forEach(function(key){var g=groups[key],v=g.v;var id='v_'+slug(v.ic+'_'+v.pad);
+      var anyFail=g.rows.some(function(r){return !r.pass;});
+      idx+='<li><a href="#'+id+'">'+esc(v.ic)+' · '+esc(v.pad)+'</a> — Verr '+(v.Verr)+' mV <span class="b '+(anyFail?'bf':'bp')+'">'+(anyFail?'FAIL':'PASS')+'</span></li>';
+      body+='<h2 id="'+id+'">'+esc(v.ic)+' · '+esc(v.pad)+' &mdash; victim net</h2>';
+      body+='<p class="sub">Receiver R<sub>in</sub>='+v.Rin+' Ω, C<sub>in</sub>='+v.Cin+' pF, trace '+v.w+'×'+v.t+' µm · '+v.len+' µm long, spacing d='+v.d+' µm. '
+        +'Noise budget <b>V<sub>err</sub> ≤ '+v.Verr+' mV</b>. Coupling spec (closed form V<sub>victim,pk</sub>=M·V<sub>agg</sub>/(R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>)):</p>';
+      body+='<table><tr><th>Aggressor</th><th>M actual</th><th>M ≤ spec</th><th>d actual</th><th>d ≥ min</th><th>L actual</th><th>L ≤ max</th><th>V<sub>victim,pk</sub></th><th>Status</th></tr>';
+      g.rows.forEach(function(r){var c=r.pass?'pass':'fail';
+        body+='<tr><td>'+esc(r.a.ic)+' · <b>'+esc(r.a.pad)+'</b><br><span class="sub">dV='+r.a.dV+' V, R<sub>out</sub>='+r.a.Rout+' Ω</span></td>'
+          +'<td class="'+c+'">'+pH(r.Mact)+'</td><td>≤ '+pH(r.Mmax)+'</td>'
+          +'<td>'+um(r.dact)+'</td><td>≥ '+um(r.dmin)+'</td>'
+          +'<td>'+um(r.Lact)+'</td><td>≤ '+um(r.Lmax)+'</td>'
+          +'<td class="'+c+'">'+ (Math.abs(r.Vpk)<1e-3?(r.Vpk*1e6).toPrecision(3)+' µV':(r.Vpk*1e3).toPrecision(3)+' mV') +'</td>'
+          +'<td><span class="b '+(r.pass?'bp':'bf')+'">'+(r.pass?'PASS':'FAIL')+'</span></td></tr>';
+      });
+      body+='</table>';
+    });
+    idx+='</ul></div>';
+    var when=new Date().toLocaleString();
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+      +'<title>SI Spec Output — Inductive Crosstalk</title><style>'+css+'</style></head><body>'
+      +'<h1>⚡ Inductive Crosstalk — Spec Output</h1>'
+      +'<p class="sub">Generated '+when+' from <a href="https://borenw.github.io/inductive-crosstalk/">borenw.github.io/inductive-crosstalk</a>. '
+      +'Spec = max coupling that keeps each victim ≤ its V<sub>err</sub>; <b>PASS</b> when M actual ≤ M spec. d/L limits are the spacing / overlap that meet the M spec at the other value fixed.</p>'
+      +idx+body+'</body></html>';
+  }
+  function genReport(){
+    var htmlStr=buildReport();
+    var blob=new Blob([htmlStr],{type:'text/html'});
+    var url=URL.createObjectURL(blob);
+    var w=window.open(url,'_blank');
+    if(!w){var a=document.createElement('a');a.href=url;a.download='si_spec_output.html';document.body.appendChild(a);a.click();a.remove();}
+    setTimeout(function(){URL.revokeObjectURL(url);},60000);
+  }
   // ---------- events ----------
   ['aggrTbl','victTbl'].forEach(function(id){
     var el=document.getElementById(id);
@@ -676,6 +744,7 @@ against primary sources before use. Educational; trademarks belong to their owne
     AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVdt:5,f:1,Rout:50,w:150,t:35,len:5000});renderAggr();refresh();});
   document.getElementById('addVict').addEventListener('click',function(){
     VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Cin:5,d:500,w:150,t:35,len:5000});renderVict();refresh();});
+  document.getElementById('genReport').addEventListener('click',genReport);
   renderAggr();renderVict();refresh();
 })();
 </script>
