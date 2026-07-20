@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev22</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev23</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev22</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev23</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -257,8 +257,8 @@ revisions.</p>
 </div>
 
 <div class="sitool" style="margin:14px 0">
-  <button class="btn" id="genReport" style="font-size:14px;padding:9px 16px">📄 Generate spec output .html</button>
-  <span style="font-size:12.5px;color:#5E6C84;margin-left:8px">&mdash; builds a standalone report (index on top, one spec table per victim net: M / d / L limits vs actual) and opens it in a new tab.</span>
+  <button class="btn" id="genReport" style="font-size:14px;padding:9px 16px">📐 Generate Layout Spec (.html)</button>
+  <span style="font-size:12.5px;color:#5E6C84;margin-left:8px">&mdash; builds a standalone <b>Layout Spec</b> (index on top, per victim net: the <b>M &le; limit</b> for each aggressor + a suggested spacing / parallel-length) and opens it in a new tab.</span>
 </div>
 
 <p style="margin-top:16px"><b>Per-victim verdict</b> &mdash; worst aggressor for each victim (inductive only):</p>
@@ -681,43 +681,46 @@ against primary sources before use. Educational; trademarks belong to their owne
         var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6;
         if(!(d>0)||!(ov>0)||!(C2>0))return;
         var Mact=Mmut(d,ov), Mmax=Verr*R1*R2*C2/Vg;
-        var dmin=dForM(ov,Mmax), Lmax=LForM(d,Mmax), Vpk=Mact*Vg/(R1*R2*C2);
-        groups[key].rows.push({a:a,Mact:Mact,Mmax:Mmax,dmin:dmin,Lmax:Lmax,dact:d,Lact:ov,Vpk:Vpk,Verr:Verr,pass:Mact<=Mmax});
+        var dmin=dForM(ov,Mmax), Lmax=LForM(d,Mmax);
+        groups[key].rows.push({a:a,Mact:Mact,Mmax:Mmax,dmin:dmin,Lmax:Lmax,dact:d,Lact:ov});
       });
     });
     var css='body{font:14px -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#172B4D;max-width:1000px;margin:24px auto;padding:0 18px}'
       +'h1{color:#0052CC}h2{background:#0052CC;color:#fff;padding:7px 12px;border-radius:4px;font-size:17px;margin-top:30px}'
       +'table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}th{background:#DEEBFF;text-align:left;padding:7px 9px;border:1px solid #B3D4FF}'
-      +'td{padding:6px 9px;border:1px solid #DFE1E6}.pass{color:#006644;font-weight:700}.fail{color:#DE350B;font-weight:700}'
-      +'.b{display:inline-block;padding:2px 9px;border-radius:4px;font-weight:700;font-size:12px}.bp{background:#E3FCEF;color:#006644}.bf{background:#FFEBE6;color:#DE350B}'
+      +'td{padding:6px 9px;border:1px solid #DFE1E6}.lim{color:#0747A6;font-weight:700}'
       +'.idx{background:#F4F5F7;border:1px solid #DFE1E6;border-left:4px solid #0052CC;border-radius:4px;padding:10px 18px}a{color:#0052CC}'
+      +'.note{background:#E3FCEF;border-left:4px solid #36B37E;padding:9px 14px;border-radius:4px;margin:8px 0}.note ul{margin:6px 0}'
       +'.sub{color:#5E6C84;font-size:12.5px}code{font-family:Consolas,monospace;color:#0747A6}';
-    var idx='<div class="idx"><b>📄 Index — victim nets</b><ul>';
+    var idx='<div class="idx"><b>📐 Index — victim nets</b><ul>';
     var body='';
     order.forEach(function(key){var g=groups[key],v=g.v;var id='v_'+slug(v.ic+'_'+v.pad);
-      var anyFail=g.rows.some(function(r){return !r.pass;});
-      idx+='<li><a href="#'+id+'">'+esc(v.ic)+' · '+esc(v.pad)+'</a> — Verr '+(v.Verr)+' mV <span class="b '+(anyFail?'bf':'bp')+'">'+(anyFail?'FAIL':'PASS')+'</span></li>';
+      idx+='<li><a href="#'+id+'">'+esc(v.ic)+' · '+esc(v.pad)+'</a> — V<sub>err</sub> '+(v.Verr)+' mV</li>';
       body+='<h2 id="'+id+'">'+esc(v.ic)+' · '+esc(v.pad)+' &mdash; victim net</h2>';
-      body+='<p class="sub">Receiver R<sub>in</sub>='+v.Rin+' Ω, C<sub>in</sub>='+v.Cin+' pF, trace '+v.w+'×'+v.t+' µm · '+v.len+' µm long, spacing d='+v.d+' µm. '
-        +'Noise budget <b>V<sub>err</sub> ≤ '+v.Verr+' mV</b>. Coupling spec (closed form V<sub>victim,pk</sub>=M·V<sub>agg</sub>/(R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>)):</p>';
-      body+='<table><tr><th>Aggressor</th><th>M actual</th><th>M ≤ spec</th><th>d actual</th><th>d ≥ min</th><th>L actual</th><th>L ≤ max</th><th>V<sub>victim,pk</sub></th><th>Status</th></tr>';
-      g.rows.forEach(function(r){var c=r.pass?'pass':'fail';
-        body+='<tr><td>'+esc(r.a.ic)+' · <b>'+esc(r.a.pad)+'</b><br><span class="sub">dV='+r.a.dV+' V, R<sub>out</sub>='+r.a.Rout+' Ω</span></td>'
-          +'<td class="'+c+'">'+pH(r.Mact)+'</td><td>≤ '+pH(r.Mmax)+'</td>'
-          +'<td>'+um(r.dact)+'</td><td>≥ '+um(r.dmin)+'</td>'
-          +'<td>'+um(r.Lact)+'</td><td>≤ '+um(r.Lmax)+'</td>'
-          +'<td class="'+c+'">'+ (Math.abs(r.Vpk)<1e-3?(r.Vpk*1e6).toPrecision(3)+' µV':(r.Vpk*1e3).toPrecision(3)+' mV') +'</td>'
-          +'<td><span class="b '+(r.pass?'bp':'bf')+'">'+(r.pass?'PASS':'FAIL')+'</span></td></tr>';
+      body+='<p class="sub">Receiver R<sub>in</sub>='+v.Rin+' Ω, C<sub>in</sub>='+v.Cin+' pF, trace '+v.w+'×'+v.t+' µm · '+v.len+' µm long. '
+        +'Noise budget <b>V<sub>err</sub> ≤ '+v.Verr+' mV</b> &rarr; mutual-inductance limit per aggressor:</p>';
+      body+='<table><tr><th>Aggressor</th><th>M (current)</th><th>M &le; spec (layout limit)</th></tr>';
+      g.rows.forEach(function(r){
+        body+='<tr><td>'+esc(r.a.ic)+' · <b>'+esc(r.a.pad)+'</b> <span class="sub">(dV='+r.a.dV+' V, R<sub>out</sub>='+r.a.Rout+' Ω)</span></td>'
+          +'<td>'+pH(r.Mact)+'</td><td class="lim">&le; '+pH(r.Mmax)+'</td></tr>';
       });
       body+='</table>';
+      body+='<div class="note"><b>💡 Layout suggestion</b> (comment for the layout designer — <i>either</i> of these meets the M limit; not a hard spec):<ul>';
+      g.rows.forEach(function(r){
+        body+='<li><b>'+esc(r.a.pad)+' &rarr; '+esc(v.pad)+'</b>: keep parallel-run length <span class="lim">L &le; '+um(r.Lmax)+'</span> (if spacing stays '+um(r.dact)+'), '
+          +'<i>or</i> spacing <span class="lim">d &ge; '+um(r.dmin)+'</span> (if the parallel run stays '+um(r.Lact)+'). '
+          +'<span class="sub">e.g. route them '+um(r.dmin)+' apart, or limit the parallel overlap to '+um(r.Lmax)+'.</span></li>';
+      });
+      body+='</ul></div>';
     });
     idx+='</ul></div>';
     var when=new Date().toLocaleString();
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-      +'<title>SI Spec Output — Inductive Crosstalk</title><style>'+css+'</style></head><body>'
-      +'<h1>⚡ Inductive Crosstalk — Spec Output</h1>'
+      +'<title>Layout Spec</title><style>'+css+'</style></head><body>'
+      +'<h1>📐 Layout Spec &mdash; Inductive Crosstalk</h1>'
       +'<p class="sub">Generated '+when+' from <a href="https://borenw.github.io/inductive-crosstalk/">borenw.github.io/inductive-crosstalk</a>. '
-      +'Spec = max coupling that keeps each victim ≤ its V<sub>err</sub>; <b>PASS</b> when M actual ≤ M spec. d/L limits are the spacing / overlap that meet the M spec at the other value fixed.</p>'
+      +'For each victim net, the <b>hard spec is M &le; the layout limit</b> (max mutual inductance that keeps the victim within its V<sub>err</sub>, closed form M<sub>max</sub>=V<sub>err</sub>R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>/V<sub>agg</sub>). '
+      +'The spacing / parallel-length figures are <b>suggested examples</b> that satisfy that M limit.</p>'
       +idx+body+'</body></html>';
   }
   function genReport(){
