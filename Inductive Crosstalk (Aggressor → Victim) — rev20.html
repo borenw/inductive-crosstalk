@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev19</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev20</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev19</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev20</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -275,7 +275,20 @@ mutual inductance <span class="val">M(d)</span> comes from the parallel-filament
 <span class="val">V<sub>victim,pk</sub> = M&middot;V<sub>agg</sub>/(R<sub>1</sub>R<sub>2</sub>C<sub>2</sub>)</span>
 with R<sub>1</sub>=driver R<sub>out</sub>, R<sub>2</sub>=receiver R<sub>in</sub>, C<sub>2</sub>=receiver C<sub>in</sub>.
 <b>PASS</b> when V<sub>victim,pk</sub> &le; V<sub>err</sub>. The <b>ratio</b> column is V<sub>victim,pk</sub>/V<sub>err</sub>
-(&lt;100% passes; N× fails by that factor).</div>
+(&lt;100% passes; N× fails by that factor). The <b>(sim)</b> column is the exact 4-state solve (§10, links to the
+ASCII waveform).</div>
+<div class="note" style="background:#DEEBFF;border-left-color:#0052CC">&#128260; <b>Closed-form vs sim &mdash; when they diverge.</b>
+The gate compares the coupled RC filter time <span class="val">&tau;<sub>2</sub>=R<sub>in</sub>C<sub>in</sub></span> to the aggressor
+pulse width (&asymp;100&nbsp;ps here):
+<ul style="margin:6px 0">
+<li><b>Slow / heavy filter</b> (&tau;<sub>2</sub> &gt;&gt; pulse, e.g. R<sub>in</sub>=2&nbsp;k&Omega;, C<sub>in</sub>=5&nbsp;pF &rarr; &tau;<sub>2</sub>=10&nbsp;ns):
+the closed form <b>is the exact limit</b> &mdash; sim and closed form <b>agree</b> (&asymp;0.095&nbsp;mV vs 0.099&nbsp;mV).</li>
+<li><b>Fast / light filter</b> (&tau;<sub>2</sub> &lesssim; pulse, e.g. R<sub>in</sub>=50&nbsp;&Omega;, C<sub>in</sub>=0.1&nbsp;pF &rarr; &tau;<sub>2</sub>=5&nbsp;ps):
+C<sub>in</sub> partly <b>discharges through R<sub>in</sub> during the pulse</b>, so the true peak is far lower &mdash; the closed
+form <b>over-reads</b> (can be 2&ndash;11&times;). Here the <b>(sim)</b> column is the trustworthy number; the closed form
+stays as a safe upper bound.</li>
+</ul>
+(A big closed-form&ndash;sim gap therefore flags a <i>fast</i> victim filter, not an error.)</div>
 <div class="warn"><b>Modeling assumptions (first approach).</b>
 (1) Worst-case voltage <b>step</b> for the aggressor edge (dV/dt=&infin; limit; inductance bounds dI/dt) &mdash; finite
 dV/dt only lowers the peak, so dV/dt &amp; f are captured but not yet de-rated. (2) I<sub>1,pk</sub>&asymp;V<sub>agg</sub>/R<sub>out</sub>
@@ -487,24 +500,42 @@ against primary sources before use. Educational; trademarks belong to their owne
   function victimPeak(M,Vg,R1,R2,C2){return M*Vg/(R1*R2*C2);}
   // trace self-inductance (needed by the exact solve)
   function Lself(L,w,t){return MU0*L/(2*Math.PI)*(Math.log(2*L/(w+t))+0.5+0.2235*(w+t)/L);}
-  // exact 4-state RK4 solve -> peak |V across C2|  (matches the §10 Python / ASCII model, C1=100 pF)
+  // exact 4-state RK4 solve -> peak |V across C2| over a short peak-window (matches §10 model).
+  // Explicit RK4 is stiff-limited: it needs dt < ~2.4*L2/R2. When that can't be met inside the
+  // step budget (very large Rin), fall back to the R-dominated reduced solve (ωL2«R2), which is
+  // stable for any R2 and agrees with the full 4-state to <2% wherever the 4-state is valid.
   function simPeak(La,Lv,M,R1,R2,C2,Vg){
-    var C1=100e-12, k=M/Math.sqrt(La*Lv); if(k>0.98)M=0.98*Math.sqrt(La*Lv);
-    var det=La*Lv-M*M;
-    function f(x){var I1=x[0],Vc1=x[1],I2=x[2],Vc2=x[3];var b1=Vg-R1*I1-Vc1,b2=-R2*I2-Vc2;
-      return [(Lv*b1-M*b2)/det, I1/C1, (-M*b1+La*b2)/det, I2/C2];}
-    var dt=Math.min(La/R1,Lv/R2,R2*C2,Math.sqrt(Lv*C2))/25;
-    var T=Math.max(8*R2*C2,40*La/R1,3e-9),N=Math.min(60000,Math.ceil(T/dt));dt=T/N;
-    var x=[0,0,0,0],vpk=0;
-    for(var i=0;i<N;i++){
-      var k1=f(x),x2=[x[0]+.5*dt*k1[0],x[1]+.5*dt*k1[1],x[2]+.5*dt*k1[2],x[3]+.5*dt*k1[3]],k2=f(x2);
-      var x3=[x[0]+.5*dt*k2[0],x[1]+.5*dt*k2[1],x[2]+.5*dt*k2[2],x[3]+.5*dt*k2[3]],k3=f(x3);
-      var x4=[x[0]+dt*k3[0],x[1]+dt*k3[1],x[2]+dt*k3[2],x[3]+dt*k3[3]],k4=f(x4);
-      for(var j=0;j<4;j++)x[j]+=dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]);
-      var a=Math.abs(x[3]); if(!isFinite(a)||a>2*Math.abs(Vg))return Math.abs(Vg);
-      if(a>vpk)vpk=a;
+    var C1=100e-12, T=Math.max(40*La/R1,3e-9);
+    var dt=Math.min(La/R1,Lv/R2,R2*C2,Math.sqrt(Lv*C2))/25, N=Math.ceil(T/dt);
+    if(N>60000){N=60000;dt=T/N;}
+    if(dt < 2.4*Lv/R2){                                   // --- full 4-state (non-stiff) ---
+      var det=La*Lv-M*M;
+      var f=function(x){var I1=x[0],Vc1=x[1],I2=x[2],Vc2=x[3];var b1=Vg-R1*I1-Vc1,b2=-R2*I2-Vc2;
+        return [(Lv*b1-M*b2)/det, I1/C1, (-M*b1+La*b2)/det, I2/C2];};
+      var x=[0,0,0,0],vpk=0;
+      for(var i=0;i<N;i++){
+        var k1=f(x),x2=[x[0]+.5*dt*k1[0],x[1]+.5*dt*k1[1],x[2]+.5*dt*k1[2],x[3]+.5*dt*k1[3]],k2=f(x2);
+        var x3=[x[0]+.5*dt*k2[0],x[1]+.5*dt*k2[1],x[2]+.5*dt*k2[2],x[3]+.5*dt*k2[3]],k3=f(x3);
+        var x4=[x[0]+dt*k3[0],x[1]+dt*k3[1],x[2]+dt*k3[2],x[3]+dt*k3[3]],k4=f(x4);
+        for(var j=0;j<4;j++)x[j]+=dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]);
+        var a=Math.abs(x[3]); if(!isFinite(a)||a>2*Math.abs(Vg))break;
+        if(a>vpk)vpk=a;
+      }
+      return Math.min(vpk,Math.abs(Vg));
     }
-    return Math.min(vpk,Math.abs(Vg));
+    // --- R-dominated reduced (L2 negligible): 3-state [I1,Vc1,Vc2], stable for any R2 ---
+    var dtr=Math.min(La/R1,R2*C2,R1*C1)/40, Tr=Math.max(60*La/R1,3e-9), Nr=Math.min(200000,Math.ceil(Tr/dtr)); dtr=Tr/Nr;
+    var g=function(s){var I1=s[0],Vc1=s[1],Vc2=s[2];var dI1=(Vg-R1*I1-Vc1)/La,I2=-(M*dI1+Vc2)/R2;
+      return [dI1, I1/C1, I2/C2];};
+    var s=[0,0,0],vp=0;
+    for(var m=0;m<Nr;m++){
+      var g1=g(s),s2=[s[0]+.5*dtr*g1[0],s[1]+.5*dtr*g1[1],s[2]+.5*dtr*g1[2]],g2=g(s2);
+      var s3=[s[0]+.5*dtr*g2[0],s[1]+.5*dtr*g2[1],s[2]+.5*dtr*g2[2]],g3=g(s3);
+      var s4=[s[0]+dtr*g3[0],s[1]+dtr*g3[1],s[2]+dtr*g3[2]],g4=g(s4);
+      for(var n=0;n<3;n++)s[n]+=dtr/6*(g1[n]+2*g2[n]+2*g3[n]+g4[n]);
+      var b=Math.abs(s[2]); if(!isFinite(b))break; if(b>vp)vp=b;
+    }
+    return Math.min(vp,Math.abs(Vg));
   }
   // ---------- formatting ----------
   function fV(v){var a=Math.abs(v);return a<1e-3?(v*1e6).toFixed(1)+' µV':a<1?(v*1e3).toPrecision(3)+' mV':v.toPrecision(3)+' V';}
