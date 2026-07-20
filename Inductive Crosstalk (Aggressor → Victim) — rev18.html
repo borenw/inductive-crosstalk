@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev16</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev18</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev16</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev18</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -219,7 +219,7 @@ worst-case voltage <b>step</b> (the &infin;-slew limit); a finite dV/dt only rel
 <thead><tr>
   <th>Driver IC</th><th>Driver pad</th><th>Function</th>
   <th>dV (V)</th><th>dV/dt (V/ns)</th><th>f (MHz)</th><th>R<sub>out</sub> (&Omega;)</th>
-  <th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (mm)</th><th></th></tr></thead>
+  <th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (&micro;m)</th><th></th></tr></thead>
 <tbody></tbody></table>
 <button class="btn" id="addAggr">+ Add aggressor</button>
 </div>
@@ -235,7 +235,7 @@ self-inductance and the parallel-run coupling length.</p>
 <thead><tr>
   <th>Receiver IC</th><th>Rx pad</th><th>Function</th>
   <th>V<sub>err</sub> (mV)</th><th>R<sub>in</sub> (&Omega;)</th><th>C<sub>in</sub> (pF)</th>
-  <th>d to aggr (&micro;m)</th><th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (mm)</th><th></th></tr></thead>
+  <th>parallel d to aggr (&micro;m)</th><th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (&micro;m)</th><th></th></tr></thead>
 <tbody></tbody></table>
 <button class="btn" id="addVict">+ Add victim</button>
 </div>
@@ -263,7 +263,7 @@ revisions.</p>
 
 <p style="margin-top:20px"><b>All aggressor&rarr;victim pairs</b> (worst first):</p>
 <table class="ctab" id="chkTbl"><thead><tr>
-  <th>Aggressor</th><th>Victim</th><th>d (&micro;m)</th><th>overlap L (mm)</th>
+  <th>Aggressor</th><th>Victim</th><th>d (&micro;m)</th><th>overlap L (&micro;m)</th>
   <th>M (pH)</th><th>V<sub>victim,pk</sub></th><th>V<sub>err</sub></th>
   <th>ratio</th><th>Inductive</th></tr></thead><tbody></tbody></table>
 
@@ -324,53 +324,118 @@ M=441.7 pH (k=0.50); victim R<sub>2</sub>=0 k&Omega;, C<sub>2</sub>=1 pF.</p>
 </table>
 
 <h2 id="model">10. Python model (coupled 4-state)</h2>
-<p>Self-contained &mdash; <b>copy, paste, run</b> (needs <span class="val">numpy scipy matplotlib</span>): it builds the
-mutual inductance from the wire spacing, solves the 4-state ODE, <b>prints the victim peak</b> for both headline cases and
-<b>plots</b> the filtered victim &mdash; reproducing Case&nbsp;A (&asymp;1&nbsp;mV) and Case&nbsp;B (&asymp;100&nbsp;mV). Same file in the
-repo: <a href="inductive_crosstalk_model.py">inductive_crosstalk_model.py</a>.</p>
-<pre># Coupled 4-state inductive-crosstalk model — copy, paste, run.
-#   pip install numpy scipy matplotlib   →   python3 this_file.py
-import numpy as np
-from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
+<p>Self-contained &mdash; <b>copy, paste, run</b> with nothing but the <b>Python standard library</b> (no numpy / scipy / matplotlib). It builds the mutual inductance from the geometry, RK4-solves the 4-state ODE, and prints an <b>ASCII waveform with the peak marked (<code>*</code>) and its value labeled</b> &mdash; reproducing the <b>default-populated Spec&nbsp;Checker case</b> (&sect;5&ndash;7): aggressor <span class="val">PWM_HDRV</span> into <span class="val">ISEN_CS1</span> (R<sub>in</sub>=200&nbsp;&Omega; &rarr; <b>3.18&nbsp;mV, FAIL</b>) and <span class="val">ISEN_CS2</span> (R<sub>in</sub>=1000&nbsp;&Omega; &rarr; <b>0.85&nbsp;mV, PASS</b> vs the 1&nbsp;mV budget). Same file in the repo: <a href="inductive_crosstalk_model.py">inductive_crosstalk_model.py</a>.</p>
+<pre># Coupled 4-state inductive-crosstalk model — copy, paste, run.  PURE STANDARD LIBRARY.
+#   python3 this_file.py      # no numpy / scipy / matplotlib needed; prints an ASCII waveform
+#
+# Reproduces the DEFAULT case populated in the Spec Checker (section 7):
+#   aggressor PWM_HDRV : dV=5 V, Rout=100 ohm, 30x10 um trace, 4000 um long
+#   victims  ISEN_CS1 (Rin=200 ohm) and ISEN_CS2 (Rin=1000 ohm), Cin=1 pF, d=100 um, 150 um long
+import math
+mu0 = 4e-7*math.pi
 
-# --- geometry: 1 mm wire, 30 um wide, 10 um thick -&gt; self-inductance ---
-mu0, l, w, t = 4e-7*np.pi, 1e-3, 30e-6, 10e-6
-L1 = L2 = mu0*l/(2*np.pi)*(np.log(2*l/(w+t)) + 0.5 + 0.2235*(w+t)/l)   # ~0.884 nH
+def Lself(L,w,t): return mu0*L/(2*math.pi)*(math.log(2*L/(w+t))+0.5+0.2235*(w+t)/L)  # trace self-L
+def Mmut(d,L):    return mu0*L/(2*math.pi)*(math.asinh(L/d)-math.sqrt(1+(d/L)**2)+d/L) # parallel mutual
 
-# --- fixed circuit values ---
-R1, C1, Vagg = 50.0, 100e-12, 1.0      # primary  (aggressor loop)
-R2, C2       = 50.0, 1e-12             # victim filter (light: tau2 = 50 ps)
+# --- default-populated geometry / drive ---
+Vagg, R1, C1 = 5.0, 100.0, 100e-12
+La = Lself(4000e-6, 30e-6, 10e-6)          # aggressor self-inductance (4 mm)
+Lv = Lself( 150e-6, 30e-6, 10e-6)          # victim self-inductance (150 um)
+M  = Mmut(100e-6, min(4000e-6, 150e-6))    # mutual over 150 um overlap at d = 100 um
 
-def Mof(d):                            # mutual inductance of two parallel wires, spacing d
-    return mu0*l/(2*np.pi)*(np.arcsinh(l/d) - np.sqrt(1+(d/l)**2) + d/l)
+def simulate(R2, C2):
+    &quot;&quot;&quot;RK4 solve of x=[I1,Vc1,I2,Vc2]; returns (times, victim voltage across C2).&quot;&quot;&quot;
+    det = La*Lv - M*M
+    def f(x):
+        I1,Vc1,I2,Vc2 = x
+        b1 = Vagg - R1*I1 - Vc1                 # primary branch
+        b2 =       - R2*I2 - Vc2                # secondary branch (no source)
+        return (( Lv*b1 - M*b2)/det, I1/C1, (-M*b1 + La*b2)/det, I2/C2)
+    dt = min(La/R1, Lv/R2, R2*C2, math.sqrt(Lv*C2))/25
+    T  = max(8*R2*C2, 40*La/R1, 3e-9); N = min(60000, math.ceil(T/dt)); dt = T/N
+    x=[0.0]*4; ts=[0.0]; vs=[0.0]
+    for i in range(N):
+        k1=f(x); x2=[x[j]+.5*dt*k1[j] for j in range(4)]
+        k2=f(x2); x3=[x[j]+.5*dt*k2[j] for j in range(4)]
+        k3=f(x3); x4=[x[j]+dt*k3[j] for j in range(4)]; k4=f(x4)
+        for j in range(4): x[j]+=dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j])
+        ts.append((i+1)*dt); vs.append(x[3])
+    return ts, vs
 
-def solve(M):                          # returns (t, victim-voltage-across-C2)
-    det = L1*L2 - M*M                  # mutual-inductance matrix determinant
-    def rhs(t, x):                     # x = [I1, Vc1, I2, Vc2]
-        I1, Vc1, I2, Vc2 = x
-        b1 = Vagg - R1*I1 - Vc1        # primary branch
-        b2 =       - R2*I2 - Vc2       # secondary branch (no source)
-        dI1 = ( L2*b1 - M*b2)/det
-        dI2 = (-M*b1 + L1*b2)/det
-        return [dI1, I1/C1, dI2, I2/C2]
-    s = solve_ivp(rhs, (0, 8e-9), [0,0,0,0], rtol=1e-10, atol=1e-15, max_step=2e-12)
-    return s.t, s.y[3]                 # victim = voltage across C2
+def ascii_plot(ts, vs, title, W=60, H=15):
+    &quot;&quot;&quot;ASCII waveform of V(t) with the peak marked and its value annotated.&quot;&quot;&quot;
+    ip = max(range(len(vs)), key=lambda i: abs(vs[i])); vpk, tpk = vs[ip], ts[ip]
+    Tplot = min(max(9*tpk, 300e-12), ts[-1])
+    lo, hi = min(0.0, min(vs)), max(0.0, max(vs))
+    if hi==lo: hi = lo+1e-9
+    row = lambda v: min(H-1, max(0, int(round((hi-v)/(hi-lo)*(H-1)))))
+    col = lambda t: min(W-1, max(0, int(round(t/Tplot*(W-1)))))
+    grid=[[&#x27; &#x27;]*W for _ in range(H)]; r0=row(0.0)
+    for c in range(W): grid[r0][c]=&#x27;-&#x27;                       # zero axis
+    pkc=col(tpk); j=0
+    for c in range(W):
+        tt=c/(W-1)*Tplot
+        while j+1&lt;len(ts) and ts[j+1]&lt;tt: j+=1
+        grid[row(vs[j])][c] = &#x27;*&#x27; if c==pkc else &#x27;o&#x27;         # curve, &#x27;*&#x27; at peak
+    ann=&#x27; &lt;- peak = %.3f mV&#x27;%(vpk*1e3); rp=row(vpk)          # inline annotation
+    s=max(0, min(pkc+2, W-len(ann)-1))
+    for i,ch in enumerate(ann):
+        if s+i&lt;W: grid[rp][s+i]=ch
+    ylab={0:&#x27;%7.3f&#x27;%(hi*1e3), r0:&#x27;%7.3f&#x27;%0.0, H-1:&#x27;%7.3f&#x27;%(lo*1e3)}
+    out=[title]
+    for ri,rc in enumerate(grid): out.append(ylab.get(ri,&#x27;       &#x27;)+&#x27; |&#x27;+&#x27;&#x27;.join(rc))
+    out.append(&#x27;        +&#x27;+&#x27;-&#x27;*W)
+    out.append(&#x27;        0&#x27;+&#x27; &#x27;*(W//2-4)+&#x27;time [ps]&#x27;+&#x27; &#x27;*(W//2-13)+&#x27;%d&#x27;%round(Tplot*1e12))
+    return &#x27;\n&#x27;.join(out), vpk
 
-# --- run the two headline cases and show the result ---
-cases = {&quot;Case A  (far,  d=23.5 mm)&quot;: Mof(23.5e-3),
-         &quot;Case B  (near, d=0.088 mm)&quot;: Mof(0.088e-3)}
-print(f&quot;L1 = L2 = {L1*1e9:.3f} nH   (R1={R1:.0f} Ohm, R2={R2:.0f} Ohm, C2={C2*1e12:.0f} pF, Vagg={Vagg} V)\n&quot;)
-plt.figure(figsize=(8,4))
-for name, M in cases.items():
-    tt, Vvic = solve(M)
-    Vpk = np.max(np.abs(Vvic))
-    print(f&quot;{name:28s}  M = {M*1e12:6.2f} pH   -&gt;   victim peak = {Vpk*1e3:8.3f} mV&quot;)
-    plt.plot(tt*1e12, Vvic*1e3, label=f&quot;{name}  (peak {Vpk*1e3:.2f} mV)&quot;)
-plt.xlabel(&quot;time  [ps]&quot;); plt.ylabel(&quot;V_victim across C2  [mV]&quot;)
-plt.title(&quot;Coupled 4-state inductive crosstalk — filtered victim&quot;); plt.xlim(0,300)
-plt.legend(); plt.grid(alpha=0.3); plt.tight_layout(); plt.show()</pre>
-<div class="note">&#9654; <b>Result</b> (printed on run): <span class="val">Case A &rarr; 0.999 mV &nbsp;·&nbsp; Case B &rarr; 100.041 mV</span> &mdash; matches Table&nbsp;1, and a matplotlib window shows the two filtered-victim waveforms.</div>
+print(&quot;La=%.3f nH   Lv=%.4f nH   M=%.2f pH   (Vagg=%.0f V, R1=%.0f ohm, Cin=1 pF)\n&quot;
+      % (La*1e9, Lv*1e9, M*1e12, Vagg, R1))
+for name, Rin in [(&quot;ISEN_CS1&quot;, 200.0), (&quot;ISEN_CS2&quot;, 1000.0)]:
+    ts, vs = simulate(Rin, 1e-12)
+    plot, vpk = ascii_plot(ts, vs, &quot;PWM_HDRV -&gt; %s  (Rin=%.0f ohm)  [victim V across C2, mV]&quot;%(name,Rin))
+    print(plot); print(&quot;        Verr = 1.000 mV   -&gt;   %s\n&quot;%(&quot;PASS&quot; if abs(vpk)&lt;=1e-3 else &quot;FAIL&quot;))</pre>
+<div class="note">&#9654; <b>Result</b> (printed to the terminal on run):</div>
+<pre style="background:#0b1020;color:#c8e1ff;border-color:#0b1020">La=4.640 nH   Lv=0.0772 nH   M=19.79 pH   (Vagg=5 V, R1=100 ohm, Cin=1 pF)
+
+PWM_HDRV -&gt; ISEN_CS1  (Rin=200 ohm)  [victim V across C2, mV]
+  0.000 |o----------------------------------------------------------o
+        |                                            ooooooooooooooo 
+        |                                    oooooooo                
+        |                               ooooo                        
+        |                            ooo                             
+        | o                       ooo                                
+        |                      ooo                                   
+        |                    oo                                      
+        |                  oo                                        
+        |  o             oo                                          
+        |               o                                            
+        |   o         oo                                             
+        |           oo                                               
+        |    o    oo                                                 
+ -3.176 |     oo*o &lt;- peak = -3.176 mV                               
+        +------------------------------------------------------------
+        0                          time [ps]                 792
+        Verr = 1.000 mV   -&gt;   FAIL
+
+PWM_HDRV -&gt; ISEN_CS2  (Rin=1000 ohm)  [victim V across C2, mV]
+  0.060 |                                                            
+  0.000 |o-----------------------------------------------------------
+        |                                                            
+        |                                                            
+        |                                                         ooo
+        |                                                 oooooooo   
+        |                                          ooooooo           
+        | o                                  oooooo                  
+        |                               ooooo                        
+        |                          ooooo                             
+        |  o                   oooo                                  
+        |                  oooo                                      
+        |   o          oooo                                          
+        |    o     oooo                                              
+ -0.846 |     oo*o &lt;- peak = -0.846 mV                               
+        +------------------------------------------------------------
+        0                          time [ps]                 1310
+        Verr = 1.000 mV   -&gt;   PASS</pre>
 
 <h2 id="src">11. Sources</h2>
 <ol class="refs">
@@ -425,15 +490,11 @@ against primary sources before use. Educational; trademarks belong to their owne
   var IC=['Controller','SPS','Host','Else'], ICN={Controller:'1. Controller',SPS:'2. SPS',Host:'3. Host',Else:'4. Else'};
   var FN=['PWM','digital-hs','power/gnd','analog-drive','current-sense','analog-Vsense'];
   var AGGR=[
-    {ic:'Controller',pad:'PWM_HDRV',fn:'PWM',       dV:5,  dVdt:10,f:1,  Rout:10,w:200,t:35,len:8},
-    {ic:'SPS',       pad:'SW_NODE', fn:'PWM',       dV:12, dVdt:20,f:1,  Rout:5, w:300,t:70,len:12},
-    {ic:'Host',      pad:'CLK_100M',fn:'digital-hs',dV:1.8,dVdt:8, f:100,Rout:40,w:100,t:35,len:6}
+    {ic:'Controller',pad:'PWM_HDRV',fn:'PWM',       dV:5,  dVdt:10,f:1,  Rout:100,w:30,t:10,len:4000}
   ];
   var VICT=[
-    {ic:'SPS',       pad:'ISEN_CS', fn:'current-sense',Verr:1,  Rin:1000, Cin:10, d:200, w:150,t:35,len:6},
-    {ic:'Controller',pad:'VSEN_SVC',fn:'analog-Vsense',Verr:100,Rin:50,   Cin:1,  d:500, w:150,t:35,len:6},
-    {ic:'Host',      pad:'VREF',    fn:'analog-Vsense',Verr:5,  Rin:10000,Cin:5,  d:1000,w:120,t:35,len:4},
-    {ic:'Controller',pad:'VDD_GND', fn:'power/gnd',    Verr:200,Rin:10,   Cin:100,d:300, w:400,t:70,len:10}
+    {ic:'Controller',pad:'ISEN_CS1',fn:'analog-Vsense',Verr:1,  Rin:200, Cin:1,  d:100, w:30,t:10,len:150},
+    {ic:'Controller',pad:'ISEN_CS2',fn:'analog-Vsense',Verr:1,  Rin:1000,Cin:1,  d:100, w:30,t:10,len:150}
   ];
   var AKEYS=[['dV',5],['dVdt',5],['f',4],['Rout',6],['w',7],['t',8],['len',9]];
   var VKEYS=[['Verr',3],['Rin',4],['Cin',5],['d',6],['w',7],['t',8],['len',9]];
@@ -476,7 +537,7 @@ against primary sources before use. Educational; trademarks belong to their owne
     AGGR.forEach(function(a){
       var Vg=a.dV, R1=a.Rout>0?a.Rout:1e-3;
       VICT.forEach(function(v){
-        var ov=Math.min(a.len,v.len)*1e-3, d=v.d*1e-6, R2=v.Rin>0?v.Rin:1e-3, C2=v.Cin*1e-12;
+        var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6, R2=v.Rin>0?v.Rin:1e-3, C2=v.Cin*1e-12;
         if(!(d>0)||!(ov>0)||!(C2>0)){return;}
         var M=Mmut(d,ov);
         var vp=Math.min(victimPeak(M,Vg,R1,R2,C2),Math.abs(Vg));   // cap at source swing
@@ -491,7 +552,7 @@ against primary sources before use. Educational; trademarks belong to their owne
     cb.innerHTML=pairs.map(function(p){return '<tr class="'+(p.pass?'p':'f')+'">'+
       '<td>'+esc(p.a.ic)+' · <b>'+esc(p.a.pad)+'</b></td>'+
       '<td>'+esc(p.v.ic)+' · <b>'+esc(p.v.pad)+'</b></td>'+
-      '<td>'+p.d+'</td><td>'+p.ov.toFixed(2)+'</td>'+
+      '<td>'+p.d+'</td><td>'+p.ov.toFixed(0)+'</td>'+
       '<td>'+fM(p.M)+'</td>'+
       '<td class="'+(p.pass?'pass':'fail')+'">'+fV(p.vp)+'</td>'+
       '<td>'+fV(p.verr)+'</td>'+
@@ -522,9 +583,9 @@ against primary sources before use. Educational; trademarks belong to their owne
     });
   });
   document.getElementById('addAggr').addEventListener('click',function(){
-    AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVdt:5,f:1,Rout:50,w:150,t:35,len:5});renderAggr();refresh();});
+    AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVdt:5,f:1,Rout:50,w:150,t:35,len:5000});renderAggr();refresh();});
   document.getElementById('addVict').addEventListener('click',function(){
-    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Cin:5,d:500,w:150,t:35,len:5});renderVict();refresh();});
+    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Cin:5,d:500,w:150,t:35,len:5000});renderVict();refresh();});
   renderAggr();renderVict();refresh();
 })();
 </script>
