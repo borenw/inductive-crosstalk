@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev25</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev26</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev25</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev26</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -211,7 +211,7 @@ the two tables below to match your design.)</p>
 <b>📥 Import / export aggressor + victim info (CSV)</b> — build it in the
 <a href="https://borenw.github.io/aggressor-victim-info/" target="_blank"><b>Aggressor / Victim Info</b> page</a>
 (macros for popular ICs), then <b>paste the CSV</b> below <i>or</i> <b>browse a .csv</b>, and Load — it populates the §5/§6 tables.
-<div style="margin:8px 0"><textarea id="csvText" rows="4" style="width:100%;font-family:Consolas,monospace;font-size:12px;border:1px solid #B3D4FF;border-radius:4px;padding:6px" placeholder="# AGGRESSORS&#10;IC,pad,function,dV,dVmin,dVmax,dVdt,f,Rout,Routmin,Routmax,W,T,L&#10;Controller,PWM_HDRV,PWM,5,,,10,1,100,,,30,10,4000&#10;# VICTIMS&#10;IC,pad,function,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L&#10;Controller,ISEN_CS1,current-sense,1,200,,,1,,,100,30,10,150"></textarea></div>
+<div style="margin:8px 0"><textarea id="csvText" rows="4" style="width:100%;font-family:Consolas,monospace;font-size:12px;border:1px solid #B3D4FF;border-radius:4px;padding:6px" placeholder="# AGGRESSORS&#10;IC,pad,function,dV,dVmin,dVmax,dVdt,f,Rout,Routmin,Routmax,W,T,L&#10;Controller,PWM_HDRV,PWM,5,,,10,1,100,,,30,10,4000&#10;# VICTIMS&#10;IC,pad,function,filter,fc_MHz,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L&#10;Controller,ISEN_CS1,current-sense,brick-LPF,10,1,200,,,1,,,100,30,10,150"></textarea></div>
 <button class="btn" id="csvLoad">📥 Load into §5/§6 tables</button>
 <label class="btn" style="cursor:pointer">📂 Browse .csv<input type="file" id="csvFile" accept=".csv,.txt" style="display:none"></label>
 <button class="btn" id="csvExport">📤 Download current as CSV</button>
@@ -246,7 +246,7 @@ self-inductance and the parallel-run coupling length.</p>
 <div class="sitool">
 <table class="ctab" id="victTbl">
 <thead><tr>
-  <th>Receiver IC</th><th>Rx pad</th><th>Function</th>
+  <th>Receiver IC</th><th>Rx pad</th><th>Function</th><th>Filter</th><th>f<sub>c</sub> (MHz)</th>
   <th>V<sub>err</sub> (mV)</th><th>R<sub>in</sub> (&Omega;)</th><th>R<sub>in</sub> min</th><th>R<sub>in</sub> max</th>
   <th>C<sub>in</sub> (pF)</th><th>C<sub>in</sub> min</th><th>C<sub>in</sub> max</th>
   <th>parallel d to aggr (&micro;m)</th><th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (&micro;m)</th><th></th></tr></thead>
@@ -600,8 +600,8 @@ against primary sources before use. Educational; trademarks belong to their owne
     {ic:'Controller',pad:'PWM_HDRV',fn:'PWM', dV:5,dVmin:'',dVmax:'', dVdt:10,f:1, Rout:100,Routmin:'',Routmax:'', w:30,t:10,len:4000}
   ];
   var VICT=[
-    {ic:'Controller',pad:'ISEN_CS1',fn:'analog-Vsense',Verr:1, Rin:200, Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150},
-    {ic:'Controller',pad:'ISEN_CS2',fn:'analog-Vsense',Verr:1, Rin:1000,Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150}
+    {ic:'Controller',pad:'ISEN_CS1',fn:'analog-Vsense',filt:'brick-LPF',fc:10,Verr:1, Rin:200, Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150},
+    {ic:'Controller',pad:'ISEN_CS2',fn:'analog-Vsense',filt:'brick-LPF',fc:10,Verr:1, Rin:1000,Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150}
   ];
   var AKEYS=[['dV'],['dVmin'],['dVmax'],['dVdt'],['f'],['Rout'],['Routmin'],['Routmax'],['w'],['t'],['len']];
   var VKEYS=[['Verr'],['Rin'],['Rinmin'],['Rinmax'],['Cin'],['Cinmin'],['Cinmax'],['d'],['w'],['t'],['len']];
@@ -620,11 +620,13 @@ against primary sources before use. Educational; trademarks belong to their owne
       AKEYS.map(function(k){return '<td>'+ti(r[k[0]])+'</td>';}).join('')+
       '<td><button class="del">✕</button></td></tr>';}).join('');
   }
+  function filtSel(c){var O=['all-pass','brick-LPF','1-pole RC'];c=c||'all-pass';return '<select class="filt">'+O.map(function(o){return '<option'+(o===c?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';}
   function renderVict(){
     document.querySelector('#victTbl tbody').innerHTML=VICT.map(function(r,i){return '<tr data-i="'+i+'">'+
       '<td>'+icSel(r.ic)+'</td>'+
       '<td><input class="tin tpad pad" value="'+esc(r.pad)+'"></td>'+
       '<td>'+fnSel(r.fn)+'</td>'+
+      '<td>'+filtSel(r.filt)+'</td><td><input class="fc" style="width:50px;padding:5px 6px;border:1px solid #4C9AFF;border-radius:4px;font-family:monospace;font-size:14px;text-align:right" value="'+(r.fc==null?'':r.fc)+'"></td>'+
       VKEYS.map(function(k){return '<td>'+ti(r[k[0]])+'</td>';}).join('')+
       '<td><button class="del">✕</button></td></tr>';}).join('');
   }
@@ -633,6 +635,8 @@ against primary sources before use. Educational; trademarks belong to their owne
     rec.ic=tr.querySelector('select.ic').value;
     rec.fn=tr.querySelector('select.fn').value;
     rec.pad=tr.querySelector('input.pad').value;
+    var fs=tr.querySelector('select.filt');if(fs)rec.filt=fs.value;
+    var fce=tr.querySelector('input.fc');if(fce){var fv=parseFloat(fce.value);rec.fc=isFinite(fv)?fv:'';}
     var tins=tr.querySelectorAll('input.tin:not(.pad)');
     keys.forEach(function(k,ix){var raw=(tins[ix].value||'').trim();
       if(/min$|max$/.test(k[0])){ rec[k[0]]=(raw===''?'':(isFinite(parseFloat(raw))?parseFloat(raw):'')); }
@@ -787,7 +791,7 @@ against primary sources before use. Educational; trademarks belong to their owne
   document.getElementById('addAggr').addEventListener('click',function(){
     AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVmin:'',dVmax:'',dVdt:5,f:1,Rout:50,Routmin:'',Routmax:'',w:150,t:35,len:5000});renderAggr();refresh();});
   document.getElementById('addVict').addEventListener('click',function(){
-    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000});renderVict();refresh();});
+    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',filt:'all-pass',fc:'',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000});renderVict();refresh();});
   document.getElementById('genReport').addEventListener('click',genReport);
   document.getElementById('genReportCsv').addEventListener('click',genReportCSV);
   // ---------- CSV import / export ----------
@@ -802,7 +806,7 @@ against primary sources before use. Educational; trademarks belong to their owne
     return m[v]||''; }
   var HMAP={ic:'ic',driveric:'ic',receiveric:'ic',rxic:'ic',pad:'pad',driverpad:'pad',rxpad:'pad',
     'function':'fn',fn:'fn',dv:'dV',va:'dV',vagg:'dV',dvmin:'dVmin',dvmax:'dVmax',dvdt:'dVdt',dvdtvns:'dVdt',f:'f',fmhz:'f',
-    rout:'Rout',r1:'Rout',routmin:'Routmin',routmax:'Routmax',verr:'Verr',verrmv:'Verr',
+    rout:'Rout',r1:'Rout',routmin:'Routmin',routmax:'Routmax',verr:'Verr',verrmv:'Verr',filter:'filt',filt:'filt',fcmhz:'fc',fc:'fc',fcorner:'fc',
     rin:'Rin',r2:'Rin',rinmin:'Rinmin',rinmax:'Rinmax',cin:'Cin',c2:'Cin',cinmin:'Cinmin',cinmax:'Cinmax',cinpf:'Cin',c2pf:'Cin',
     d:'d',daggr:'d',paralleldtoaggr:'d',w:'w',wm:'w',t:'t',tm:'t',l:'len',len:'len',length:'len',lm:'len'};
   function normHdr(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');}
@@ -810,10 +814,11 @@ against primary sources before use. Educational; trademarks belong to their owne
     if(ch==='"'){q=!q;}else if(ch===','&&!q){o.push(c);c='';}else c+=ch;}o.push(c);return o.map(function(s){return s.trim();});}
   function newRec(kind){return kind==='a'
     ?{ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVmin:'',dVmax:'',dVdt:5,f:1,Rout:50,Routmin:'',Routmax:'',w:150,t:35,len:5000}
-    :{ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000};}
+    :{ic:'Else',pad:'NEW',fn:'analog-Vsense',filt:'all-pass',fc:'',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000};}
   function rowToRec(cells,map,kind){var r=newRec(kind);
     cells.forEach(function(c,ix){var f=map[ix];if(!f)return;var v=(c||'').trim();
       if(f==='ic')r.ic=icNorm(v); else if(f==='pad'){if(v)r.pad=v;} else if(f==='fn'){var fn=fnNorm(v);if(fn)r.fn=fn;}
+      else if(f==='filt'){if(v)r.filt=v;}
       else if(/min$|max$/.test(f)){r[f]=(v===''||!isFinite(parseFloat(v)))?'':parseFloat(v);}
       else {var n=parseFloat(v);if(isFinite(n))r[f]=n;}});
     return r;}
@@ -839,8 +844,8 @@ against primary sources before use. Educational; trademarks belong to their owne
     var q=function(x){return (x===''||x==null)?'':x;};
     var a='# AGGRESSORS\nIC,pad,function,dV,dVmin,dVmax,dVdt,f,Rout,Routmin,Routmax,W,T,L\n'+
       AGGR.map(function(r){return [r.ic,r.pad,r.fn,r.dV,q(r.dVmin),q(r.dVmax),r.dVdt,r.f,r.Rout,q(r.Routmin),q(r.Routmax),r.w,r.t,r.len].join(',');}).join('\n');
-    var v='# VICTIMS\nIC,pad,function,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L\n'+
-      VICT.map(function(r){return [r.ic,r.pad,r.fn,r.Verr,r.Rin,q(r.Rinmin),q(r.Rinmax),r.Cin,q(r.Cinmin),q(r.Cinmax),r.d,r.w,r.t,r.len].join(',');}).join('\n');
+    var v='# VICTIMS\nIC,pad,function,filter,fc_MHz,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L\n'+
+      VICT.map(function(r){return [r.ic,r.pad,r.fn,(r.filt||'all-pass'),q(r.fc),r.Verr,r.Rin,q(r.Rinmin),q(r.Rinmax),r.Cin,q(r.Cinmin),q(r.Cinmax),r.d,r.w,r.t,r.len].join(',');}).join('\n');
     return a+'\n\n'+v+'\n';}
   document.getElementById('csvLoad').addEventListener('click',function(){applyCSV(document.getElementById('csvText').value);});
   document.getElementById('csvFile').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;
