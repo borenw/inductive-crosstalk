@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev26</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev27</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev26</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev27</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -279,7 +279,8 @@ revisions.</p>
 <p style="margin-top:16px"><b>Per-victim verdict</b> &mdash; worst aggressor for each victim (inductive only):</p>
 <table class="ctab" id="sumTbl"><thead><tr>
   <th>Victim (IC · pad)</th><th>V<sub>err</sub></th><th>Worst aggressor</th>
-  <th>V<sub>victim,pk</sub> (induced)</th><th>Margin</th><th>Inductive</th></tr></thead><tbody></tbody></table>
+  <th>V<sub>victim,pk</sub> (induced)</th><th>Filter (§6)</th><th>V<sub>victim,pk</sub> (post-filter)</th><th>Margin</th><th>Inductive</th></tr></thead><tbody></tbody></table>
+<div class="note" style="font-size:12.5px">&#128270; <b>Post-filter</b> = the induced peak after the victim's front-end filter (&sect;6) rejects the fast coupled glitch. A brick-LPF at f<sub>c</sub> passes only the low-frequency content, so the receiver sees <span class="val">V<sub>victim,pk</sub>&middot;min(1, 2f<sub>c</sub>&middot;R<sub>1</sub>C<sub>1</sub>)</span> (R<sub>1</sub>C<sub>1</sub> = primary decay &asymp; glitch width; &times;2&pi; for a 1-pole RC). <b>PASS/FAIL &amp; Margin use the post-filter value</b> (what actually reaches the ADC); the <span style="color:#5E6C84">induced</span> column is the raw pre-filter coupling. First-order estimate.</div>
 
 <p style="margin-top:20px"><b>All aggressor&rarr;victim pairs</b> (worst first):</p>
 <table class="ctab" id="chkTbl"><thead><tr>
@@ -647,6 +648,13 @@ against primary sources before use. Educational; trademarks belong to their owne
     document.querySelectorAll('#victTbl tbody tr').forEach(function(tr){readRow(tr,VICT[+tr.dataset.i],VKEYS);});
   }
   // ---------- spec checker ----------
+  // victim front-end filter: a fast coupled glitch (width ~ R1*C1) through a LPF at fc keeps only
+  // its low-freq content -> post-filter peak = Vpk * min(1, K*fc*R1*C1)  (K=2 brick-LPF, 2π 1-pole RC)
+  function postFilter(vp,filt,fc,R1){
+    if(!filt||filt==='all-pass'||!(fc>0))return vp;
+    var K=(filt==='brick-LPF')?2:2*Math.PI;
+    return vp*Math.min(1, K*(fc*1e6)*(R1*100e-12));
+  }
   function runChecker(){
     var pairs=[], vworst={};
     AGGR.forEach(function(a){
@@ -660,9 +668,10 @@ against primary sources before use. Educational; trademarks belong to their owne
         var La=Lself(a.len*1e-6,a.w*1e-6,a.t*1e-6), Lv=Lself(v.len*1e-6,v.w*1e-6,v.t*1e-6);
         var sp=simPeak(La,Lv,M,R1,R2,C2,Vg);                       // exact 4-state sim
         var verr=v.Verr*1e-3, ratio=vp/verr;
-        pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,sp:sp,verr:verr,ratio:ratio,pass:vp<=verr,spass:sp<=verr});
+        var post=postFilter(vp,v.filt,v.fc,R1);
+        pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,sp:sp,post:post,verr:verr,ratio:ratio,pass:vp<=verr,spass:sp<=verr});
         var vk=v.ic+'|'+v.pad;
-        if(!vworst[vk]||vp>vworst[vk].vp)vworst[vk]={v:v,a:a,vp:vp,verr:verr,pass:vp<=verr};
+        if(!vworst[vk]||vp>vworst[vk].vp)vworst[vk]={v:v,a:a,vp:vp,post:post,verr:verr,pass:vp<=verr};
       });
     });
     pairs.sort(function(x,y){return y.ratio-x.ratio;});
@@ -679,14 +688,17 @@ against primary sources before use. Educational; trademarks belong to their owne
       '<td><span class="stat-badge '+(p.pass?'b-pass':'b-fail')+'">'+(p.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('')
       || '<tr><td colspan="10" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
     var sb=document.querySelector('#sumTbl tbody');
-    sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var margin=s.verr-s.vp;
+    sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var pp=s.post<=s.verr;var margin=s.verr-s.post;
+      var fl=(s.v.filt&&s.v.filt!=='all-pass')?esc(s.v.filt)+' '+(s.v.fc||'?')+' MHz':'all-pass';
       return '<tr>'+
       '<td>'+esc(s.v.ic)+' · <b>'+esc(s.v.pad)+'</b></td>'+
       '<td>'+fV(s.verr)+'</td>'+
       '<td>'+esc(s.a.ic)+' · '+esc(s.a.pad)+'</td>'+
-      '<td class="'+(s.pass?'pass':'fail')+'">'+fV(s.vp)+'</td>'+
-      '<td>'+(s.pass?'<span class="pass">+'+fV(margin)+'</span>':'<span style="color:#DE350B;font-weight:700">N/A</span>')+'</td>'+
-      '<td><span class="stat-badge '+(s.pass?'b-pass':'b-fail')+'">'+(s.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('');
+      '<td style="color:#5E6C84">'+fV(s.vp)+'</td>'+
+      '<td style="font-size:12px;color:#42526E">'+fl+'</td>'+
+      '<td class="'+(pp?'pass':'fail')+'">'+fV(s.post)+'</td>'+
+      '<td>'+(pp?'<span class="pass">+'+fV(margin)+'</span>':'<span style="color:#DE350B;font-weight:700">N/A</span>')+'</td>'+
+      '<td><span class="stat-badge '+(pp?'b-pass':'b-fail')+'">'+(pp?'PASS':'FAIL')+'</span></td></tr>';}).join('');
   }
   function refresh(){syncArrays();runChecker();}
   // ---------- spec-output report (.html) ----------
