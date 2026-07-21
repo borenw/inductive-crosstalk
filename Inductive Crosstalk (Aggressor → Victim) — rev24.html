@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev23</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev24</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev23</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev24</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -701,7 +701,7 @@ against primary sources before use. Educational; trademarks belong to their owne
         +'Noise budget <b>V<sub>err</sub> ≤ '+v.Verr+' mV</b> &rarr; mutual-inductance limit per aggressor:</p>';
       body+='<table><tr><th>Aggressor</th><th>M (current)</th><th>M &le; spec (layout limit)</th></tr>';
       g.rows.forEach(function(r){
-        body+='<tr><td>'+esc(r.a.ic)+' · <b>'+esc(r.a.pad)+'</b> <span class="sub">(dV='+r.a.dV+' V, R<sub>out</sub>='+r.a.Rout+' Ω)</span></td>'
+        body+='<tr><td>'+esc(r.a.ic)+' · <b>'+esc(r.a.pad)+'</b></td>'
           +'<td>'+pH(r.Mact)+'</td><td class="lim">&le; '+pH(r.Mmax)+'</td></tr>';
       });
       body+='</table>';
