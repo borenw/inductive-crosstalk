@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev27</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev28</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev27</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev28</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -287,8 +287,9 @@ revisions.</p>
   <th>Aggressor</th><th>Victim</th><th>d (&micro;m)</th><th>overlap L (&micro;m)</th>
   <th>M (pH)</th><th>V<sub>victim,pk</sub><br><span style="font-weight:400;color:#5E6C84">closed-form</span></th>
   <th>V<sub>victim,pk</sub> (sim)<br><span style="font-weight:400;color:#5E6C84">4-state &rarr; &sect;10 &#8629;</span></th>
+  <th>V<sub>victim,pk</sub><br>(post-filter)</th>
   <th>V<sub>err</sub></th>
-  <th>ratio</th><th>Inductive</th></tr></thead><tbody></tbody></table>
+  <th>Margin</th><th>Inductive</th></tr></thead><tbody></tbody></table>
 
 <div class="note">&#128204; <b>How the inductive check works (per pair).</b>
 mutual inductance <span class="val">M(d)</span> comes from the parallel-filament formula over the <b>overlap length</b>
@@ -671,24 +672,26 @@ against primary sources before use. Educational; trademarks belong to their owne
         var post=postFilter(vp,v.filt,v.fc,R1);
         pairs.push({a:a,v:v,d:v.d,ov:Math.min(a.len,v.len),M:M,vp:vp,sp:sp,post:post,verr:verr,ratio:ratio,pass:vp<=verr,spass:sp<=verr});
         var vk=v.ic+'|'+v.pad;
-        if(!vworst[vk]||vp>vworst[vk].vp)vworst[vk]={v:v,a:a,vp:vp,post:post,verr:verr,pass:vp<=verr};
+        if(!vworst[vk]||post>vworst[vk].post)vworst[vk]={v:v,a:a,vp:vp,post:post,verr:verr,pass:vp<=verr};
       });
     });
-    pairs.sort(function(x,y){return y.ratio-x.ratio;});
+    pairs.sort(function(x,y){return (y.post/y.verr)-(x.post/x.verr);});
     var cb=document.querySelector('#chkTbl tbody');
-    cb.innerHTML=pairs.map(function(p){return '<tr class="'+(p.pass?'p':'f')+'">'+
+    cb.innerHTML=pairs.map(function(p){var pp=p.post<=p.verr;var mg=(p.verr-p.post)/p.verr*100;
+      return '<tr class="'+(pp?'p':'f')+'">'+
       '<td>'+esc(p.a.ic)+' · <b>'+esc(p.a.pad)+'</b></td>'+
       '<td>'+esc(p.v.ic)+' · <b>'+esc(p.v.pad)+'</b></td>'+
       '<td>'+p.d+'</td><td>'+p.ov.toFixed(0)+'</td>'+
       '<td>'+fM(p.M)+'</td>'+
-      '<td class="'+(p.pass?'pass':'fail')+'">'+fV(p.vp)+'</td>'+
-      '<td class="'+(p.spass?'pass':'fail')+'"><a href="#asciiout" style="color:inherit;font-weight:700" title="jump to the ASCII simulation waveform (§10)">'+fV(p.sp)+' &#8629;</a></td>'+
+      '<td style="color:#5E6C84">'+fV(p.vp)+'</td>'+
+      '<td style="color:#5E6C84"><a href="#asciiout" style="color:inherit;font-weight:700" title="jump to the ASCII simulation waveform (§10)">'+fV(p.sp)+' &#8629;</a></td>'+
+      '<td class="'+(pp?'pass':'fail')+'">'+fV(p.post)+'</td>'+
       '<td>'+fV(p.verr)+'</td>'+
-      '<td>'+(p.ratio>=1?p.ratio.toFixed(1)+'×':(p.ratio*100).toFixed(0)+'%')+'</td>'+
-      '<td><span class="stat-badge '+(p.pass?'b-pass':'b-fail')+'">'+(p.pass?'PASS':'FAIL')+'</span></td></tr>';}).join('')
-      || '<tr><td colspan="10" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
+      '<td class="'+(pp?'pass':'fail')+'">'+(mg>=0?'+':'')+mg.toFixed(0)+'%</td>'+
+      '<td><span class="stat-badge '+(pp?'b-pass':'b-fail')+'">'+(pp?'PASS':'FAIL')+'</span></td></tr>';}).join('')
+      || '<tr><td colspan="11" style="text-align:center;color:#7A869A">No valid pairs — add rows above.</td></tr>';
     var sb=document.querySelector('#sumTbl tbody');
-    sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var pp=s.post<=s.verr;var margin=s.verr-s.post;
+    sb.innerHTML=Object.keys(vworst).map(function(kk){var s=vworst[kk];var pp=s.post<=s.verr;var margin=(s.verr-s.post)/s.verr*100;
       var fl=(s.v.filt&&s.v.filt!=='all-pass')?esc(s.v.filt)+' '+(s.v.fc||'?')+' MHz':'all-pass';
       return '<tr>'+
       '<td>'+esc(s.v.ic)+' · <b>'+esc(s.v.pad)+'</b></td>'+
@@ -697,7 +700,7 @@ against primary sources before use. Educational; trademarks belong to their owne
       '<td style="color:#5E6C84">'+fV(s.vp)+'</td>'+
       '<td style="font-size:12px;color:#42526E">'+fl+'</td>'+
       '<td class="'+(pp?'pass':'fail')+'">'+fV(s.post)+'</td>'+
-      '<td>'+(pp?'<span class="pass">+'+fV(margin)+'</span>':'<span style="color:#DE350B;font-weight:700">N/A</span>')+'</td>'+
+      '<td class="'+(pp?'pass':'fail')+'">'+(margin>=0?'+':'')+margin.toFixed(0)+'%</td>'+
       '<td><span class="stat-badge '+(pp?'b-pass':'b-fail')+'">'+(pp?'PASS':'FAIL')+'</span></td></tr>';}).join('');
   }
   function refresh(){syncArrays();runChecker();}
