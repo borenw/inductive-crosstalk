@@ -272,7 +272,8 @@ revisions.</p>
 
 <div class="sitool" style="margin:14px 0">
   <button class="btn" id="genReport" style="font-size:14px;padding:9px 16px">📐 Generate Layout Spec (.html)</button>
-  <span style="font-size:12.5px;color:#5E6C84;margin-left:8px">&mdash; builds a standalone <b>Layout Spec</b> (index on top, per victim net: the <b>M &le; limit</b> for each aggressor + a suggested spacing / parallel-length) and opens it in a new tab.</span>
+  <button class="btn" id="genReportCsv" style="font-size:14px;padding:9px 16px">📄 Layout Spec (.csv)</button>
+  <span style="font-size:12.5px;color:#5E6C84;margin-left:8px">&mdash; builds a standalone <b>Layout Spec</b> (per net: the <b>M &le; limit</b> for each coupled net + a suggested spacing / parallel-length). The <b>.csv</b> is one row per <code>net, coupled_net</code> pair for import into layout tools / spreadsheets.</span>
 </div>
 
 <p style="margin-top:16px"><b>Per-victim verdict</b> &mdash; worst aggressor for each victim (inductive only):</p>
@@ -691,7 +692,7 @@ against primary sources before use. Educational; trademarks belong to their owne
   function um(x){var u=x*1e6;return u>=1e4?(u/1e3).toPrecision(4)+' mm':u.toPrecision(4)+' µm';}
   function pH(x){var p=x*1e12;return p<1000?p.toPrecision(4)+' pH':(x*1e9).toPrecision(4)+' nH';}
   function slug(s){return s.replace(/[^A-Za-z0-9]+/g,'_');}
-  function buildReport(){
+  function specGroups(){
     syncArrays();
     var groups={}, order=[];
     VICT.forEach(function(v){var key=v.ic+'|'+v.pad; if(!groups[key]){groups[key]={v:v,rows:[]};order.push(key);}
@@ -704,6 +705,10 @@ against primary sources before use. Educational; trademarks belong to their owne
         groups[key].rows.push({a:a,Mact:Mact,Mmax:Mmax,dmin:dmin,Lmax:Lmax,dact:d,Lact:ov});
       });
     });
+    return {groups:groups, order:order};
+  }
+  function buildReport(){
+    var sg=specGroups(), groups=sg.groups, order=sg.order;
     var css='body{font:14px -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#172B4D;max-width:1000px;margin:24px auto;padding:0 18px}'
       +'h1{color:#0052CC}h2{background:#0052CC;color:#fff;padding:7px 12px;border-radius:4px;font-size:17px;margin-top:30px}'
       +'table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}th{background:#DEEBFF;text-align:left;padding:7px 9px;border:1px solid #B3D4FF}'
@@ -720,13 +725,13 @@ against primary sources before use. Educational; trademarks belong to their owne
         +'Keep the mutual inductance <b>M</b> between each pair of nets below the limit:</p>';
       body+='<table><tr><th>Nets</th><th>Keep M below</th></tr>';
       g.rows.forEach(function(r){
-        body+='<tr><td><b>'+esc(r.a.pad)+' &ndash; '+esc(v.pad)+'</b></td>'
+        body+='<tr><td><b>'+esc(v.pad)+' &ndash; '+esc(r.a.pad)+'</b></td>'
           +'<td class="lim">&lt; '+pH(r.Mmax)+'</td></tr>';
       });
       body+='</table>';
       body+='<div class="note"><b>💡 Layout suggestion</b> (comment for the layout designer — <i>either</i> of these meets the M limit; not a hard spec):<ul>';
       g.rows.forEach(function(r){
-        body+='<li><b>'+esc(r.a.pad)+' &rarr; '+esc(v.pad)+'</b>: keep parallel-run length <span class="lim">L &le; '+um(r.Lmax)+'</span> (if spacing stays '+um(r.dact)+'), '
+        body+='<li><b>'+esc(v.pad)+' &ndash; '+esc(r.a.pad)+'</b>: keep parallel-run length <span class="lim">L &le; '+um(r.Lmax)+'</span> (if spacing stays '+um(r.dact)+'), '
           +'<i>or</i> spacing <span class="lim">d &ge; '+um(r.dmin)+'</span> (if the parallel run stays '+um(r.Lact)+'). '
           +'<span class="sub">e.g. route them '+um(r.dmin)+' apart, or limit the parallel overlap to '+um(r.Lmax)+'.</span></li>';
       });
@@ -750,6 +755,23 @@ against primary sources before use. Educational; trademarks belong to their owne
     if(!w){var a=document.createElement('a');a.href=url;a.download='si_spec_output.html';document.body.appendChild(a);a.click();a.remove();}
     setTimeout(function(){URL.revokeObjectURL(url);},60000);
   }
+  // ---------- spec-output report (.csv) — one row per net pair ----------
+  function csvq(s){s=String(s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+  function buildReportCSV(){
+    var sg=specGroups(), groups=sg.groups, order=sg.order;
+    var lines=['net,coupled_net,M_now_pH,M_limit_pH,min_spacing_d_um,max_parallel_L_um'];
+    order.forEach(function(key){var g=groups[key],v=g.v;
+      g.rows.forEach(function(r){
+        lines.push([csvq(v.pad),csvq(r.a.pad),(r.Mact*1e12).toFixed(2),(r.Mmax*1e12).toFixed(2),(r.dmin*1e6).toFixed(1),(r.Lmax*1e6).toFixed(1)].join(','));
+      });
+    });
+    return lines.join('\n')+'\n';
+  }
+  function genReportCSV(){
+    var blob=new Blob([buildReportCSV()],{type:'text/csv'}), url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='layout_spec_crosstalk.csv';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},5000);
+  }
   // ---------- events ----------
   ['aggrTbl','victTbl'].forEach(function(id){
     var el=document.getElementById(id);
@@ -767,6 +789,7 @@ against primary sources before use. Educational; trademarks belong to their owne
   document.getElementById('addVict').addEventListener('click',function(){
     VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000});renderVict();refresh();});
   document.getElementById('genReport').addEventListener('click',genReport);
+  document.getElementById('genReportCsv').addEventListener('click',genReportCSV);
   // ---------- CSV import / export ----------
   function icNorm(v){ v=String(v).trim().toLowerCase();
     if(v==='1'||v.indexOf('controller')>=0)return 'Controller';
