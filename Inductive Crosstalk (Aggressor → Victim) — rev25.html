@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev24</title>
+<title>Inductive Crosstalk (Aggressor &rarr; Victim) &mdash; rev25</title>
 <script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['$$','$$']]}};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
 <style>
@@ -44,7 +44,7 @@
 <body>
 <div class="banner">
   <h1>&#9889; Inductive Crosstalk &mdash; Aggressor &rarr; Victim (Completed: R<sub>2</sub>, C<sub>2</sub>)</h1>
-  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev24</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
+  <div class="meta">Circuit Architect &nbsp;&bull;&nbsp; <b>rev25</b> &nbsp;&bull;&nbsp; SI spec checker (inductive) + pin / aggressor / victim tables &nbsp;&bull;&nbsp; victim peak <i>after</i> the R<sub>2</sub>C<sub>2</sub> filter</div>
 </div>
 <div class="wrap">
 
@@ -801,9 +801,9 @@ against primary sources before use. Educational; trademarks belong to their owne
       analogvsense:'analog-Vsense',analogvsensing:'analog-Vsense'};
     return m[v]||''; }
   var HMAP={ic:'ic',driveric:'ic',receiveric:'ic',rxic:'ic',pad:'pad',driverpad:'pad',rxpad:'pad',
-    'function':'fn',fn:'fn',dv:'dV',dvmin:'dVmin',dvmax:'dVmax',dvdt:'dVdt',dvdtvns:'dVdt',f:'f',fmhz:'f',
-    rout:'Rout',routmin:'Routmin',routmax:'Routmax',verr:'Verr',verrmv:'Verr',
-    rin:'Rin',rinmin:'Rinmin',rinmax:'Rinmax',cin:'Cin',cinmin:'Cinmin',cinmax:'Cinmax',cinpf:'Cin',
+    'function':'fn',fn:'fn',dv:'dV',va:'dV',vagg:'dV',dvmin:'dVmin',dvmax:'dVmax',dvdt:'dVdt',dvdtvns:'dVdt',f:'f',fmhz:'f',
+    rout:'Rout',r1:'Rout',routmin:'Routmin',routmax:'Routmax',verr:'Verr',verrmv:'Verr',
+    rin:'Rin',r2:'Rin',rinmin:'Rinmin',rinmax:'Rinmax',cin:'Cin',c2:'Cin',cinmin:'Cinmin',cinmax:'Cinmax',cinpf:'Cin',c2pf:'Cin',
     d:'d',daggr:'d',paralleldtoaggr:'d',w:'w',wm:'w',t:'t',tm:'t',l:'len',len:'len',length:'len',lm:'len'};
   function normHdr(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');}
   function splitCSV(line){var o=[],c='',q=false;for(var i=0;i<line.length;i++){var ch=line[i];
