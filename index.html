@@ -207,6 +207,18 @@ the two tables below to match your design.)</p>
 <b>Spec Checker</b> (&sect;7) parses. First column of each is the IC that owns the pad:
 <b>1&nbsp;Controller &middot; 2&nbsp;SPS &middot; 3&nbsp;Host &middot; 4&nbsp;Else</b>.</div>
 
+<div class="sitool" id="csvio" style="margin:14px 0;background:#F4F8FF;border:1px solid #B3D4FF;border-radius:6px;padding:12px 14px">
+<b>📥 Import / export aggressor + victim info (CSV)</b> — build it in the
+<a href="https://borenw.github.io/aggressor-victim-info/" target="_blank"><b>Aggressor / Victim Info</b> page</a>
+(macros for popular ICs), then <b>paste the CSV</b> below <i>or</i> <b>browse a .csv</b>, and Load — it populates the §5/§6 tables.
+<div style="margin:8px 0"><textarea id="csvText" rows="4" style="width:100%;font-family:Consolas,monospace;font-size:12px;border:1px solid #B3D4FF;border-radius:4px;padding:6px" placeholder="# AGGRESSORS&#10;IC,pad,function,dV,dVmin,dVmax,dVdt,f,Rout,Routmin,Routmax,W,T,L&#10;Controller,PWM_HDRV,PWM,5,,,10,1,100,,,30,10,4000&#10;# VICTIMS&#10;IC,pad,function,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L&#10;Controller,ISEN_CS1,current-sense,1,200,,,1,,,100,30,10,150"></textarea></div>
+<button class="btn" id="csvLoad">📥 Load into §5/§6 tables</button>
+<label class="btn" style="cursor:pointer">📂 Browse .csv<input type="file" id="csvFile" accept=".csv,.txt" style="display:none"></label>
+<button class="btn" id="csvExport">📤 Download current as CSV</button>
+<button class="btn" id="csvCopy">📋 Copy CSV</button>
+<span id="csvMsg" style="font-size:12.5px;color:#1f8a58;margin-left:8px;font-weight:600"></span>
+</div>
+
 <h2 id="aggr">5. Aggressor info</h2>
 <p>Each row is a <b>driver pad</b> that injects noise. <span class="val">dV</span> is the output swing;
 <span class="val">dV/dt</span> and <span class="val">f</span> describe the edge/rate; <span class="val">R<sub>out</sub></span>
@@ -218,7 +230,8 @@ worst-case voltage <b>step</b> (the &infin;-slew limit); a finite dV/dt only rel
 <table class="ctab" id="aggrTbl">
 <thead><tr>
   <th>Driver IC</th><th>Driver pad</th><th>Function</th>
-  <th>dV (V)</th><th>dV/dt (V/ns)</th><th>f (MHz)</th><th>R<sub>out</sub> (&Omega;)</th>
+  <th>dV (V)</th><th>dV min</th><th>dV max</th><th>dV/dt (V/ns)</th><th>f (MHz)</th>
+  <th>R<sub>out</sub> (&Omega;)</th><th>R<sub>out</sub> min</th><th>R<sub>out</sub> max</th>
   <th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (&micro;m)</th><th></th></tr></thead>
 <tbody></tbody></table>
 <button class="btn" id="addAggr">+ Add aggressor</button>
@@ -234,7 +247,8 @@ self-inductance and the parallel-run coupling length.</p>
 <table class="ctab" id="victTbl">
 <thead><tr>
   <th>Receiver IC</th><th>Rx pad</th><th>Function</th>
-  <th>V<sub>err</sub> (mV)</th><th>R<sub>in</sub> (&Omega;)</th><th>C<sub>in</sub> (pF)</th>
+  <th>V<sub>err</sub> (mV)</th><th>R<sub>in</sub> (&Omega;)</th><th>R<sub>in</sub> min</th><th>R<sub>in</sub> max</th>
+  <th>C<sub>in</sub> (pF)</th><th>C<sub>in</sub> min</th><th>C<sub>in</sub> max</th>
   <th>parallel d to aggr (&micro;m)</th><th>W (&micro;m)</th><th>T (&micro;m)</th><th>L (&micro;m)</th><th></th></tr></thead>
 <tbody></tbody></table>
 <button class="btn" id="addVict">+ Add victim</button>
@@ -582,19 +596,21 @@ against primary sources before use. Educational; trademarks belong to their owne
   var IC=['Controller','SPS','Host','Else'], ICN={Controller:'1. Controller',SPS:'2. SPS',Host:'3. Host',Else:'4. Else'};
   var FN=['PWM','digital-hs','power/gnd','analog-drive','current-sense','analog-Vsense'];
   var AGGR=[
-    {ic:'Controller',pad:'PWM_HDRV',fn:'PWM',       dV:5,  dVdt:10,f:1,  Rout:100,w:30,t:10,len:4000}
+    {ic:'Controller',pad:'PWM_HDRV',fn:'PWM', dV:5,dVmin:'',dVmax:'', dVdt:10,f:1, Rout:100,Routmin:'',Routmax:'', w:30,t:10,len:4000}
   ];
   var VICT=[
-    {ic:'Controller',pad:'ISEN_CS1',fn:'analog-Vsense',Verr:1,  Rin:200, Cin:1,  d:100, w:30,t:10,len:150},
-    {ic:'Controller',pad:'ISEN_CS2',fn:'analog-Vsense',Verr:1,  Rin:1000,Cin:1,  d:100, w:30,t:10,len:150}
+    {ic:'Controller',pad:'ISEN_CS1',fn:'analog-Vsense',Verr:1, Rin:200, Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150},
+    {ic:'Controller',pad:'ISEN_CS2',fn:'analog-Vsense',Verr:1, Rin:1000,Rinmin:'',Rinmax:'', Cin:1,Cinmin:'',Cinmax:'', d:100, w:30,t:10,len:150}
   ];
-  var AKEYS=[['dV',5],['dVdt',5],['f',4],['Rout',6],['w',7],['t',8],['len',9]];
-  var VKEYS=[['Verr',3],['Rin',4],['Cin',5],['d',6],['w',7],['t',8],['len',9]];
+  var AKEYS=[['dV'],['dVmin'],['dVmax'],['dVdt'],['f'],['Rout'],['Routmin'],['Routmax'],['w'],['t'],['len']];
+  var VKEYS=[['Verr'],['Rin'],['Rinmin'],['Rinmax'],['Cin'],['Cinmin'],['Cinmax'],['d'],['w'],['t'],['len']];
+  // override-or-base: use min/max cell when filled, else the single value (worst-case uses min for R/C, max for dV)
+  function ovb(base,v){ return (v!==''&&v!=null&&isFinite(+v))?+v:base; }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
   // ---------- render editable tables ----------
   function icSel(cur){return '<select class="ic">'+IC.map(function(o){return '<option value="'+o+'"'+(o===cur?' selected':'')+'>'+ICN[o]+'</option>';}).join('')+'</select>';}
   function fnSel(cur){return '<select class="fn">'+FN.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';}
-  function ti(v){return '<input class="tin" value="'+v+'">';}
+  function ti(v){return '<input class="tin" value="'+(v==null?'':v)+'">';}
   function renderAggr(){
     document.querySelector('#aggrTbl tbody').innerHTML=AGGR.map(function(r,i){return '<tr data-i="'+i+'">'+
       '<td>'+icSel(r.ic)+'</td>'+
@@ -617,7 +633,9 @@ against primary sources before use. Educational; trademarks belong to their owne
     rec.fn=tr.querySelector('select.fn').value;
     rec.pad=tr.querySelector('input.pad').value;
     var tins=tr.querySelectorAll('input.tin:not(.pad)');
-    keys.forEach(function(k,ix){var v=parseFloat(tins[ix].value);rec[k[0]]=isFinite(v)?v:0;});
+    keys.forEach(function(k,ix){var raw=(tins[ix].value||'').trim();
+      if(/min$|max$/.test(k[0])){ rec[k[0]]=(raw===''?'':(isFinite(parseFloat(raw))?parseFloat(raw):'')); }
+      else { var v=parseFloat(raw); rec[k[0]]=isFinite(v)?v:0; } });
   }
   function syncArrays(){
     document.querySelectorAll('#aggrTbl tbody tr').forEach(function(tr){readRow(tr,AGGR[+tr.dataset.i],AKEYS);});
@@ -627,9 +645,10 @@ against primary sources before use. Educational; trademarks belong to their owne
   function runChecker(){
     var pairs=[], vworst={};
     AGGR.forEach(function(a){
-      var Vg=a.dV, R1=a.Rout>0?a.Rout:1e-3;
+      var Vg=ovb(a.dV,a.dVmax), Ro=ovb(a.Rout,a.Routmin), R1=Ro>0?Ro:1e-3;   // worst case: max dV, min Rout
       VICT.forEach(function(v){
-        var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6, R2=v.Rin>0?v.Rin:1e-3, C2=v.Cin*1e-12;
+        var Rn=ovb(v.Rin,v.Rinmin), Cn=ovb(v.Cin,v.Cinmin);                   // worst case: min Rin, min Cin
+        var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6, R2=Rn>0?Rn:1e-3, C2=Cn*1e-12;
         if(!(d>0)||!(ov>0)||!(C2>0)){return;}
         var M=Mmut(d,ov);
         var vp=Math.min(victimPeak(M,Vg,R1,R2,C2),Math.abs(Vg));   // closed-form (conservative)
@@ -677,7 +696,7 @@ against primary sources before use. Educational; trademarks belong to their owne
     var groups={}, order=[];
     VICT.forEach(function(v){var key=v.ic+'|'+v.pad; if(!groups[key]){groups[key]={v:v,rows:[]};order.push(key);}
       AGGR.forEach(function(a){
-        var Vg=a.dV,R1=a.Rout>0?a.Rout:1e-3,R2=v.Rin>0?v.Rin:1e-3,C2=v.Cin*1e-12,Verr=v.Verr*1e-3;
+        var Vg=ovb(a.dV,a.dVmax),Ro=ovb(a.Rout,a.Routmin),R1=Ro>0?Ro:1e-3,Rn=ovb(v.Rin,v.Rinmin),R2=Rn>0?Rn:1e-3,C2=ovb(v.Cin,v.Cinmin)*1e-12,Verr=v.Verr*1e-3;
         var ov=Math.min(a.len,v.len)*1e-6, d=v.d*1e-6;
         if(!(d>0)||!(ov>0)||!(C2>0))return;
         var Mact=Mmut(d,ov), Mmax=Verr*R1*R2*C2/Vg;
@@ -744,10 +763,70 @@ against primary sources before use. Educational; trademarks belong to their owne
     });
   });
   document.getElementById('addAggr').addEventListener('click',function(){
-    AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVdt:5,f:1,Rout:50,w:150,t:35,len:5000});renderAggr();refresh();});
+    AGGR.push({ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVmin:'',dVmax:'',dVdt:5,f:1,Rout:50,Routmin:'',Routmax:'',w:150,t:35,len:5000});renderAggr();refresh();});
   document.getElementById('addVict').addEventListener('click',function(){
-    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Cin:5,d:500,w:150,t:35,len:5000});renderVict();refresh();});
+    VICT.push({ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000});renderVict();refresh();});
   document.getElementById('genReport').addEventListener('click',genReport);
+  // ---------- CSV import / export ----------
+  function icNorm(v){ v=String(v).trim().toLowerCase();
+    if(v==='1'||v.indexOf('controller')>=0)return 'Controller';
+    if(v==='2'||v.indexOf('sps')>=0)return 'SPS';
+    if(v==='3'||v.indexOf('host')>=0)return 'Host'; return 'Else'; }
+  function fnNorm(v){ v=String(v).trim().toLowerCase().replace(/[^a-z]/g,'');
+    var m={pwm:'PWM',digitalhs:'digital-hs',digitalhighspeed:'digital-hs',powergnd:'power/gnd',voltagegnd:'power/gnd',
+      analogdrive:'analog-drive',analogvidriving:'analog-drive',currentsense:'current-sense',currentsensing:'current-sense',
+      analogvsense:'analog-Vsense',analogvsensing:'analog-Vsense'};
+    return m[v]||''; }
+  var HMAP={ic:'ic',driveric:'ic',receiveric:'ic',rxic:'ic',pad:'pad',driverpad:'pad',rxpad:'pad',
+    'function':'fn',fn:'fn',dv:'dV',dvmin:'dVmin',dvmax:'dVmax',dvdt:'dVdt',dvdtvns:'dVdt',f:'f',fmhz:'f',
+    rout:'Rout',routmin:'Routmin',routmax:'Routmax',verr:'Verr',verrmv:'Verr',
+    rin:'Rin',rinmin:'Rinmin',rinmax:'Rinmax',cin:'Cin',cinmin:'Cinmin',cinmax:'Cinmax',cinpf:'Cin',
+    d:'d',daggr:'d',paralleldtoaggr:'d',w:'w',wm:'w',t:'t',tm:'t',l:'len',len:'len',length:'len',lm:'len'};
+  function normHdr(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');}
+  function splitCSV(line){var o=[],c='',q=false;for(var i=0;i<line.length;i++){var ch=line[i];
+    if(ch==='"'){q=!q;}else if(ch===','&&!q){o.push(c);c='';}else c+=ch;}o.push(c);return o.map(function(s){return s.trim();});}
+  function newRec(kind){return kind==='a'
+    ?{ic:'Else',pad:'NEW',fn:'PWM',dV:1,dVmin:'',dVmax:'',dVdt:5,f:1,Rout:50,Routmin:'',Routmax:'',w:150,t:35,len:5000}
+    :{ic:'Else',pad:'NEW',fn:'analog-Vsense',Verr:10,Rin:1000,Rinmin:'',Rinmax:'',Cin:5,Cinmin:'',Cinmax:'',d:500,w:150,t:35,len:5000};}
+  function rowToRec(cells,map,kind){var r=newRec(kind);
+    cells.forEach(function(c,ix){var f=map[ix];if(!f)return;var v=(c||'').trim();
+      if(f==='ic')r.ic=icNorm(v); else if(f==='pad'){if(v)r.pad=v;} else if(f==='fn'){var fn=fnNorm(v);if(fn)r.fn=fn;}
+      else if(/min$|max$/.test(f)){r[f]=(v===''||!isFinite(parseFloat(v)))?'':parseFloat(v);}
+      else {var n=parseFloat(v);if(isFinite(n))r[f]=n;}});
+    return r;}
+  function parseCSV(text){var lines=text.split(/\r?\n/),sec=null,aH=null,vH=null,A=[],V=[];
+    lines.forEach(function(ln){var t=ln.trim();if(!t)return;
+      if(t.charAt(0)==='#'){var lo=t.toLowerCase();if(lo.indexOf('aggr')>=0)sec='a';else if(lo.indexOf('vict')>=0)sec='v';return;}
+      var cells=splitCSV(ln), joined=ln.toLowerCase();
+      var isHdr=/\b(ic|pad|function|rin|rout|verr|dv)\b/.test(joined)&&cells.filter(function(c){return c&&isNaN(parseFloat(c));}).length>=3;
+      if(isHdr){var map=cells.map(function(c){return HMAP[normHdr(c)]||null;});
+        if(sec===null)sec=/rout/.test(joined)?'a':(/rin/.test(joined)?'v':null);
+        if(sec==='a')aH=map; else if(sec==='v')vH=map; return;}
+      if(sec==='a'&&aH)A.push(rowToRec(cells,aH,'a'));
+      else if(sec==='v'&&vH)V.push(rowToRec(cells,vH,'v'));});
+    return {A:A,V:V};}
+  function applyCSV(text){var p=parseCSV(text),msg=[];
+    if(p.A.length){AGGR.length=0;p.A.forEach(function(r){AGGR.push(r);});msg.push(p.A.length+' aggressor'+(p.A.length>1?'s':''));}
+    if(p.V.length){VICT.length=0;p.V.forEach(function(r){VICT.push(r);});msg.push(p.V.length+' victim'+(p.V.length>1?'s':''));}
+    renderAggr();renderVict();refresh();
+    var m=document.getElementById('csvMsg');
+    if(msg.length){m.style.color='#1f8a58';m.textContent='✓ loaded '+msg.join(' + ');}
+    else{m.style.color='#DE350B';m.textContent='⚠ no aggressor/victim rows found — check the CSV headers/# markers';}}
+  function toCSV(){syncArrays();
+    var q=function(x){return (x===''||x==null)?'':x;};
+    var a='# AGGRESSORS\nIC,pad,function,dV,dVmin,dVmax,dVdt,f,Rout,Routmin,Routmax,W,T,L\n'+
+      AGGR.map(function(r){return [r.ic,r.pad,r.fn,r.dV,q(r.dVmin),q(r.dVmax),r.dVdt,r.f,r.Rout,q(r.Routmin),q(r.Routmax),r.w,r.t,r.len].join(',');}).join('\n');
+    var v='# VICTIMS\nIC,pad,function,Verr,Rin,Rinmin,Rinmax,Cin,Cinmin,Cinmax,d,W,T,L\n'+
+      VICT.map(function(r){return [r.ic,r.pad,r.fn,r.Verr,r.Rin,q(r.Rinmin),q(r.Rinmax),r.Cin,q(r.Cinmin),q(r.Cinmax),r.d,r.w,r.t,r.len].join(',');}).join('\n');
+    return a+'\n\n'+v+'\n';}
+  document.getElementById('csvLoad').addEventListener('click',function(){applyCSV(document.getElementById('csvText').value);});
+  document.getElementById('csvFile').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();rd.onload=function(){document.getElementById('csvText').value=rd.result;applyCSV(rd.result);};rd.readAsText(f);});
+  document.getElementById('csvExport').addEventListener('click',function(){var b=new Blob([toCSV()],{type:'text/csv'}),u=URL.createObjectURL(b),
+    a=document.createElement('a');a.href=u;a.download='aggressor_victim_info.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},5000);});
+  document.getElementById('csvCopy').addEventListener('click',function(){var t=toCSV();var m=document.getElementById('csvMsg');
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(function(){m.style.color='#1f8a58';m.textContent='✓ CSV copied';});
+    else{document.getElementById('csvText').value=t;m.textContent='CSV written to the box ↑';}});
   renderAggr();renderVict();refresh();
 })();
 </script>
